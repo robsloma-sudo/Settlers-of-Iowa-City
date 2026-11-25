@@ -1,7 +1,7 @@
 import type { Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 // @ts-ignore plain JS rules engine
-import { createGame, addPlayer, applyAction, view, botPending, botStep, GEO } from "../../shared/engine.js";
+import { createGame, addPlayer, applyAction, view, botPending, botStep, checkTimeout, GEO } from "../../shared/engine.js";
 
 const BOT_DELAY: number = (globalThis as any).__BOT_DELAY ?? 700; // ms between computer moves, so people can follow along
 const games = () => getStore({ name: "games", consistency: "strong" });
@@ -47,6 +47,9 @@ export default async (req: Request) => {
       let g = entry as any;
       const p = g.players.find((x: any) => x.token === token);
       if (!p) return err("You are not seated in this game.", 403);
+      if (g.phase === "play" && g.turn.deadline && Date.now() >= g.turn.deadline) {
+        try { g = (await mutate(code, (fresh) => (checkTimeout(fresh) ? undefined : false))).g; } catch (e) { /* someone else passed it on */ }
+      }
       if (botPending(g) && Date.now() - g.updated >= BOT_DELAY) {
         try {
           g = (await mutate(code, (fresh) => (botPending(fresh) && Date.now() - fresh.updated >= BOT_DELAY ? botStep(fresh) : false))).g;
@@ -81,6 +84,7 @@ export default async (req: Request) => {
       const { g } = await mutate(code, (g) => {
         const p = g.players.find((x: any) => x.token === body.token);
         if (!p) throw Object.assign(new Error("You are not seated in this game."), { rule: true, status: 403 });
+        if (checkTimeout(g)) return;   // time ran out first: save the skipped turn
         applyAction(g, p.id, body.action);
       });
       const p = g.players.find((x: any) => x.token === body.token);

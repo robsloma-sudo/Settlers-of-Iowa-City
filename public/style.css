@@ -230,3 +230,8 @@ body.build .game { animation: hShake .09s infinite, hDusty 2.6s ease forwards; }
 .peek-cat { position: fixed; z-index: 58; width: min(38vw, 220px); border-radius: 14px; border: 5px solid #fffdf6; box-shadow: 0 10px 30px rgba(0,0,0,.55);
   pointer-events: none; transform: var(--from); animation: peek 4s ease-in-out forwards; }
 @keyframes peek { 0% { transform: var(--from) } 32% { transform: var(--to) } 68% { transform: var(--to) } 100% { transform: var(--from) } }
+
+/* ---------- turn clock ---------- */
+.tmr { flex: none; background: var(--ink); color: #fff; font-weight: 800; font-size: 15px; border-radius: 10px; padding: 7px 9px; font-variant-numeric: tabular-nums; min-width: 58px; text-align: center; }
+.tmr.low { background: #c0392b; animation: tmrPulse 1s ease-in-out infinite; }
+@keyframes tmrPulse { 50% { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(192,57,43,.35) } }

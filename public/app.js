@@ -22,6 +22,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('sic.' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
+let clockOffset = 0, peekedAt = {};
 let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
@@ -40,6 +41,7 @@ function toast(m) {
 }
 function setState(r) {
   if (r.geo) GEO = r.geo;
+  if (r.now) clockOffset = r.now - Date.now();
   if (r.players) for (const p of r.players) if (p.color === '#2f6fd6') p.color = '#3d8bff';
   if (S && r.version < S.version) return;
   S = r;
@@ -47,7 +49,7 @@ function setState(r) {
   const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0;
   if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; }   // don't replay old ones when a page opens
   else {
-    if (pk > lastPeek) { lastPeek = pk; queueShow(catPeek, 4300); }
+    if (pk > lastPeek) { lastPeek = pk; queueShow(() => catPeek(), 4300); }
     if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
     if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
     if (sp > lastSpecial) { lastSpecial = sp; const n = S.players[S.special.player].name; queueShow(() => kennedySpecial(n)); }
@@ -261,6 +263,8 @@ function gameHTML() {
     <div class="st"><span title="Resource cards">🂠${p.cards}</span><span title="Development cards">🃏${p.devs}</span><span title="Knights played">⚔️${p.knights}</span><span title="Longest road">🛣️${p.road}</span></div>
     ${S.longestRoad === i || S.largestArmy === i ? `<div class="bd">${S.longestRoad === i ? '<span class="badge">Longest Road</span>' : ''}${S.largestArmy === i ? '<span class="badge">Largest Army</span>' : ''}</div>` : ''}</div>`).join('');
   const d = T && T.dice, rolling = Date.now() - rollAnim < 700;
+  const dl = S.phase === 'play' && T.deadline && T.rolled ? T.deadline : 0;
+  const pill = dl ? `<div id="tmr" class="tmr" data-dl="${dl}">⏱ ${Math.max(0, Math.ceil((dl - Date.now() - clockOffset) / 1000))}s</div>` : '';
   const right = ui.pick ? `<div class="confirm"><button class="primary" data-a="confirm">✓ Confirm</button><button data-a="unpick">✕</button></div>`
     : d ? `<div class="dice ${rolling ? 'roll' : ''}">${dieHTML(d[0])}${dieHTML(d[1], true)}</div>` : '';
   const last = S.log.filter(l => l.chat == null).slice(-1)[0];
@@ -275,7 +279,7 @@ function gameHTML() {
     <div class="top"><b><span class="lg">⬢</span> Settlers of Iowa City</b><span class="code">${S.code}</span><button data-a="open" data-m="log">💬 Log</button><button data-a="open" data-m="help">?</button></div>
     <div class="players n${S.players.length}">${chips}</div>
     ${me.bot && me.wasHuman ? `<div class="banner"><span>The computer is playing your seat.</span><button class="small primary" data-a="send" data-j='{"type":"unbot"}'>Take back control</button></div>` : ''}
-    <div class="status ${mine() && S.phase !== 'over' ? 'mine' : ''}"><div class="msg">${esc(msg)}<small>${esc(ui.pick || mine() ? sub : (last ? last.m : sub))}</small></div>${right}</div>
+    <div class="status ${mine() && S.phase !== 'over' ? 'mine' : ''}">${pill}<div class="msg">${esc(msg)}<small>${esc(ui.pick || mine() ? sub : (last ? last.m : sub))}</small></div>${right}</div>
     <div class="boardwrap">${boardSVG(mode)}</div>
     <div class="hand">${RES.map(r => `<div class="rc ${me.res[r] ? '' : 'zero'}" style="background-image:url('${artURL(r)}')"><b>${me.res[r]}</b><small>${NAME[r]}</small></div>`).join('')}</div>
     <div class="actions">${b.join('')}</div>
@@ -352,10 +356,24 @@ function modalHTML() {
     <h3>Building costs</h3>
     <div class="seat"><b>Road</b>${costIcons(COST.road)}</div><div class="seat" style="margin-top:6px"><b>Settlement · 1 point</b>${costIcons(COST.settlement)}</div><div class="seat" style="margin-top:6px"><b>City · 2 points</b>${costIcons(COST.city)}</div><div class="seat" style="margin-top:6px"><b>Development card</b>${costIcons(COST.dev)}</div>
     <h3>Your turn</h3><ul><li><b>Roll.</b> Every hex with that number pays its neighbors: 1 card per settlement, 2 per city.</li><li><b>Trade</b> with other players, the bank (4:1) or your harbors (3:1 or 2:1).</li><li><b>Build</b> roads, settlements, cities, or buy development cards.</li></ul>
-    <h3>Rules to remember</h3><ul><li><b>Set-up:</b> both of your starting settlements give you one card for every land they touch.</li><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
+    <h3>Rules to remember</h3><ul><li><b>30-second clock:</b> once you've rolled (and moved the robber, if it's a 7), you have 30 seconds to build and trade. When time runs out your turn passes to the next player.</li><li><b>Set-up:</b> both of your starting settlements give you one card for every land they touch.</li><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
     <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 sweet corn fields give corn · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
 }
+
+/* ---------------- turn clock: countdown + the cat in the last 10 seconds ---------------- */
+setInterval(() => {
+  const el = document.getElementById('tmr');
+  if (!el) return;
+  const dl = +el.dataset.dl, left = Math.max(0, Math.ceil((dl - Date.now() - clockOffset) / 1000));
+  el.textContent = `⏱ ${left}s`;
+  el.classList.toggle('low', left <= 10);
+  const fired = peekedAt[dl] || (peekedAt[dl] = {});
+  for (const at of [10, 7, 4, 1]) if (left <= at && left > at - 3 && !fired[at]) {
+    fired[at] = true;
+    if (left > 0) catPeek('/img/timer-cat.jpg?v=1', 2800);
+  }
+}, 250);
 
 /* ---------------- house-rule shows (played one after another) ---------------- */
 function queueShow(fn, ms = 5200) { shows.push([fn, ms]); if (!showing) nextShow(); }
@@ -365,7 +383,7 @@ function nextShow() {
   showing = true; next[0](); setTimeout(nextShow, next[1]);
 }
 // the cat slides in from a random edge or corner, waits, and slides back out the same way
-function catPeek() {
+function catPeek(src = '/img/peek-cat.jpg?v=1', ms = 4000) {
   const spots = [
     ['top:2%;left:50%', 'translate(-50%,-120%) rotate(180deg)', 'translate(-50%,0) rotate(180deg)'],
     ['top:2%;left:2%', 'translate(-120%,-120%) rotate(135deg)', 'translate(0,0) rotate(150deg)'],
@@ -378,10 +396,10 @@ function catPeek() {
   ];
   const [pos, from, to] = spots[Math.floor(Math.random() * spots.length)];
   const el = document.createElement('img');
-  el.className = 'peek-cat'; el.src = '/img/peek-cat.jpg?v=1'; el.alt = '';
-  el.style.cssText = `${pos};--from:${from};--to:${to}`;
+  el.className = 'peek-cat'; el.src = src; el.alt = '';
+  el.style.cssText = `${pos};--from:${from};--to:${to};animation-duration:${ms}ms`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 4100);
+  setTimeout(() => el.remove(), ms + 100);
 }
 function builtHome(name, pic) {
   const old = document.getElementById('home'); if (old) old.remove();

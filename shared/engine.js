@@ -230,7 +230,27 @@ function itsOn(g, i, e) {
     }
   }
 }
-const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; };
+// House rule: 30-second turn clock. It starts once the roll (and any robber business) is done.
+export const TURN_SECONDS = 30;
+function startClock(g) { if (!g.turn.deadline) g.turn.deadline = Date.now() + TURN_SECONDS * 1000; }
+const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; if (g.turn.rolled) startClock(g); };
+function nextTurn(g) {
+  const T = g.turn;
+  g.trade = null;
+  const idx = (T.idx + 1) % g.players.length;
+  g.turn = { idx, num: T.num + 1, phase: 'roll', rolled: false, devPlayed: false, dice: T.dice, rollId: T.rollId, free: 0 };
+}
+// called by the server on every poll: passes the turn on when the clock has run out
+export function checkTimeout(g, now = Date.now()) {
+  if (g.phase !== 'play' || !g.turn.deadline || now < g.turn.deadline) return false;
+  const T = g.turn, i = T.idx, p = g.players[i];
+  if (T.phase === 'robber') { g.robber = botRobberHex(g, i); const vs = robberVictims(g, g.robber, i); if (vs.length) stealFrom(g, i, vs[rnd(vs.length)]); }
+  else if (T.phase === 'steal') stealFrom(g, i, T.victims[rnd(T.victims.length)]);
+  if (g.turn.phase === 'discard') return false;
+  log(g, `⏰ Time's up for ${p.name}! The turn passes to ${nm(g, (i + 1) % g.players.length)}.`);
+  nextTurn(g);
+  return true;
+}
 function checkWin(g) {
   if (g.phase !== 'play') return;
   const i = g.turn.idx;
@@ -372,7 +392,7 @@ export function applyAction(g, pid, a) {
         g.players.forEach((p, k) => { const t = total(p.res); if (t >= 7) g.discards[k] = Math.ceil(t / 2); });
         T.phase = Object.keys(g.discards).length ? 'discard' : 'robber';
         log(g, 'A seven! The robber strikes.');
-      } else { produce(g, n); T.phase = 'main'; }
+      } else { produce(g, n); T.phase = 'main'; startClock(g); }
       break;
     }
     case 'robber': {
@@ -492,9 +512,7 @@ export function applyAction(g, pid, a) {
     }
     case 'endTurn': {
       if (T.phase !== 'main') fail(T.phase === 'roll' ? 'Roll the dice first.' : 'Finish your current step first.');
-      g.trade = null;
-      const idx = (T.idx + 1) % g.players.length;
-      g.turn = { idx, num: T.num + 1, phase: 'roll', rolled: false, devPlayed: false, dice: T.dice, rollId: T.rollId, free: 0 };
+      nextTurn(g);
       break;
     }
     default: fail('Unknown action.');
@@ -507,7 +525,7 @@ export function view(g, pid) {
   const me = idxOf(g, pid);
   const started = g.phase !== 'lobby';
   const out = {
-    code: g.code, version: g.version, phase: g.phase, you: me, host: g.players.findIndex(p => p.id === g.host),
+    code: g.code, version: g.version, now: Date.now(), phase: g.phase, you: me, host: g.players.findIndex(p => p.id === g.host),
     players: g.players.map((p, i) => {
       const o = { name: p.name, color: p.color, bot: p.bot, wasHuman: !!p.wasHuman };
       if (started) {
