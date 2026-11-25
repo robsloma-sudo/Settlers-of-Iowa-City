@@ -201,37 +201,63 @@ def grain():
     render('grain', alb, h, shadow_len=30, slope=0.9, ambient=0.5, strength=0.75)
 
 
-# ------------------------------------------------------------------ brick (hills + brickyard)
+# ------------------------------------------------------------------ brick -> pink elephants on red-clay savanna
+def _blob(h, alb, cx, cy, ang, a, b, top, colr, r, wrinkle=0.0):
+    pad = int(max(a, b) + 4)
+    y0, y1, x0, x1 = max(0, int(cy) - pad), min(N, int(cy) + pad), max(0, int(cx) - pad), min(N, int(cx) + pad)
+    if y0 >= y1 or x0 >= x1:
+        return
+    X, Y = xx[y0:y1, x0:x1] - cx, yy[y0:y1, x0:x1] - cy
+    u = X * np.cos(ang) + Y * np.sin(ang)
+    v = -X * np.sin(ang) + Y * np.cos(ang)
+    e = (u / a) ** 2 + (v / b) ** 2
+    m = e < 1
+    hh = top * np.sqrt(np.clip(1 - e, 0, 1)) ** 0.8 + (gaussian_filter(r.standard_normal(e.shape), 1.6) * wrinkle * 4 if wrinkle else 0)
+    up = m & (hh > h[y0:y1, x0:x1])
+    shade = colr * (0.92 + 0.08 * np.clip(1 - e, 0, 1))[..., None]
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    alb[y0:y1, x0:x1] = np.where(up[..., None], shade, alb[y0:y1, x0:x1])
+
+
+def _elephant(h, alb, r, cx, cy, ang, k=1.0):
+    pink, ear, dark, tusk = col('f2a3c7'), col('e58ab3'), col('3a2430'), col('f6f1e4')
+    ca, sa = np.cos(ang), np.sin(ang)
+    P = lambda du, dv: (cx + du * ca - dv * sa, cy + du * sa + dv * ca)
+    # tail
+    for t in np.linspace(0, 1, 8):
+        x, y = P(-64 * k - t * 18 * k, np.sin(t * 3) * 4 * k)
+        _blob(h, alb, x, y, ang, 3 * k, 3 * k, 18 * k, pink * 0.9, r)
+    _blob(h, alb, *P(0, 0), ang, 66 * k, 46 * k, 44 * k, pink, r, wrinkle=0.35)          # body
+    for s_ in (-1, 1):                                                                   # big flappy ears
+        _blob(h, alb, *P(40 * k, s_ * 40 * k), ang + s_ * 0.35, 24 * k, 32 * k, 36 * k, ear, r, wrinkle=0.25)
+    _blob(h, alb, *P(58 * k, 0), ang, 30 * k, 28 * k, 42 * k, pink, r, wrinkle=0.3)       # head
+    for s_ in (-1, 1):
+        _blob(h, alb, *P(66 * k, s_ * 15 * k), ang, 3 * k, 3 * k, 44 * k, dark, r)          # eyes
+        for t in np.linspace(0, 1, 6):                                                   # tusks
+            _blob(h, alb, *P(80 * k + t * 14 * k, s_ * (11 * k + t * 5 * k)), ang, 2.6 * k, 2.6 * k, 30 * k, tusk, r)
+    curl = r.choice([-1, 1])
+    for t in np.linspace(0, 1, 16):                                                      # curling trunk
+        du = 82 * k + t * 34 * k
+        dv = curl * (np.sin(t * 2.6) * 16 * k)
+        _blob(h, alb, *P(du, dv), ang, (9 - 4 * t) * k, (9 - 4 * t) * k, (34 - 10 * t) * k, pink * (0.97 - 0.05 * t), r, wrinkle=0.2)
+
+
 def brick():
-    r = rng(33)
-    ground = fbm(r, 70, 4) * 7 + fbm(r, 2, 2) * 0.8
-    h = ground.copy()
-    alb = mix(col('8c4a2b'), col('c27046'), fbm(r, 40, 3) * 0.3 + 0.5)
-    alb = mix(alb, col('6f7d3a'), np.clip(fbm(r, 18, 3) - 0.7, 0, 1) * 0.9)  # scrub grass
-    alb = mix(alb, col('d39a6c'), np.clip(fbm(r, 2.5, 2) * 0.3, 0, 1) * 0.5)  # dust
-    piles = [(0.3, 0.27, 0.2), (0.73, 0.33, -0.25), (0.33, 0.76, -0.1)]
-    for (px, py, ang) in piles:
-        cx, cy = px * N, py * N
-        ca, sa = np.cos(ang), np.sin(ang)
-        u = (xx - cx) * ca + (yy - cy) * sa
-        v = -(xx - cx) * sa + (yy - cy) * ca
-        bw, bh, gap = 50, 23, 3.5
-        cols, rows_ = 3, 5
-        W, Hh = cols * (bw + gap), rows_ * (bh + gap)
-        inpile = (np.abs(u) < W / 2) & (np.abs(v) < Hh / 2)
-        level = 16 + r.uniform(0, 8)
-        iu = np.floor((u + W / 2) / (bw + gap)); iv = np.floor((v + Hh / 2) / (bh + gap))
-        fu = (u + W / 2) - iu * (bw + gap); fv = (v + Hh / 2) - iv * (bh + gap)
-        isbrick = inpile & (fu < bw) & (fv < bh)
-        edge = np.minimum(np.minimum(fu, bw - fu), np.minimum(fv, bh - fv))
-        bevel = np.clip(edge / 3.5, 0, 1)
-        h = np.where(inpile, ground.max() * 0 + level + np.where(isbrick, bevel * 4, -5), h)
-        seed = (iu * 7 + iv * 13 + px * 100).astype(np.int64)
-        shade = (np.sin(seed * 12.9898) * 43758.5453) % 1
-        bc = mix(col('9e3b22'), col('cf6a3f'), shade)
-        bc = mix(bc, col('5e2414'), np.clip(fbm(r, 1.5, 2) * 0.25, 0, 1) * 0.7)
-        alb = np.where(isbrick[..., None], bc, np.where(inpile[..., None], col('6b5442'), alb))
-    render('brick', alb, gaussian_filter(h, 0.6, mode='wrap'), shadow_len=36, slope=0.8, ambient=0.52)
+    r = rng(34)
+    h = fbm(r, 70, 4) * 6 + fbm(r, 2, 2) * 0.8
+    alb = mix(col('9a5230'), col('c9784c'), fbm(r, 40, 3) * 0.3 + 0.5)                   # red clay plains
+    alb = mix(alb, col('a68d45'), np.clip(fbm(r, 16, 3) - 0.45, 0, 1) * 0.9)              # dry savanna grass
+    alb = mix(alb, col('d8a274'), np.clip(fbm(r, 2.5, 2) * 0.3, 0, 1) * 0.5)              # dust
+    # a little watering hole
+    wx, wy = 0.73 * N, 0.27 * N
+    d = np.hypot((xx - wx) / 1.4, yy - wy) / (52 + fbm(r, 6, 2) * 6)
+    water = d < 1
+    h = np.where(water, h - 4 * np.clip(1 - d, 0, 1), h)
+    alb = np.where(water[..., None], mix(col('2f6d80'), col('6fb2c2'), np.clip(1 - d, 0, 1)), alb)
+    alb = np.where(((d > 1) & (d < 1.18))[..., None], col('6e4128'), alb)                # wet mud ring
+    for (x, y, a, k) in [(0.25 * N, 0.29 * N, 0.5, 1.25), (0.29 * N, 0.74 * N, -0.6, 1.2), (0.75 * N, 0.7 * N, 2.6, 0.8)]:
+        _elephant(h, alb, r, x, y, a, k)
+    render('brick', alb, h, shadow_len=40, slope=0.85, ambient=0.52, strength=0.8)
 
 
 # ------------------------------------------------------------------ lumber (forest)

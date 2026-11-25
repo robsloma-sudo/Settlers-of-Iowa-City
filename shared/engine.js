@@ -2,8 +2,9 @@
 
 export const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 // what players see: the 'grain' resource is Iowa sweet corn
-export const RES_NAME = { brick: 'brick', lumber: 'lumber', wool: 'wool', grain: 'corn', ore: 'ore' };
-const rn = r => RES_NAME[r] || r;
+// 'brick' is pink elephants (counted: 1 pink elephant, 2 pink elephants)
+export const RES_NAME = { brick: 'pink elephants', lumber: 'lumber', wool: 'wool', grain: 'corn', ore: 'ore' };
+const rn = (r, n = 2) => r === 'brick' && n === 1 ? 'pink elephant' : (RES_NAME[r] || r);
 export const COST = {
   road: { brick: 1, lumber: 1 },
   settlement: { brick: 1, lumber: 1, wool: 1, grain: 1 },
@@ -72,7 +73,7 @@ const has = (r, c) => RES.every(k => (r[k] || 0) >= (c[k] || 0));
 function fail(m) { const e = new Error(m); e.rule = true; throw e; }
 function log(g, m, priv) { g.log.push(priv ? { m, priv } : { m }); if (g.log.length > 120) g.log.splice(0, g.log.length - 120); }
 const nm = (g, i) => g.players[i].name;
-function resText(r) { return RES.filter(k => r[k]).map(k => r[k] + ' ' + rn(k)).join(', ') || 'nothing'; }
+function resText(r) { return RES.filter(k => r[k]).map(k => r[k] + ' ' + rn(k, r[k])).join(', ') || 'nothing'; }
 function cleanRes(o) {
   const r = zero();
   if (o && typeof o === 'object') for (const k of RES) { const n = Math.floor(Number(o[k]) || 0); r[k] = n > 0 && n < 100 ? n : 0; }
@@ -293,7 +294,7 @@ function stealFrom(g, i, victim) {
   if (hand.length) {
     const r = hand[rnd(hand.length)]; vr[r]--; g.players[i].res[r]++;
     log(g, `${nm(g, i)} steals a card from ${nm(g, victim)}.`,
-      { [i]: `You stole 1 ${rn(r)} from ${nm(g, victim)}.`, [victim]: `${nm(g, i)} stole 1 ${rn(r)} from you.` });
+      { [i]: `You stole 1 ${rn(r, 1)} from ${nm(g, victim)}.`, [victim]: `${nm(g, i)} stole 1 ${rn(r, 1)} from you.` });
   }
   g.turn.victims = null; resume(g);
 }
@@ -509,7 +510,7 @@ export function applyAction(g, pid, a) {
       if (me.res[a.give] < r) fail(`You need ${r} ${rn(a.give)} for that trade.`);
       if (g.bank[a.get] < 1) fail('The bank is out of ' + rn(a.get) + '.');
       me.res[a.give] -= r; g.bank[a.give] += r; me.res[a.get]++; g.bank[a.get]--;
-      log(g, `${me.name} trades ${r} ${rn(a.give)} to the ${r === 4 ? 'bank' : 'harbor'} for 1 ${rn(a.get)}.`);
+      log(g, `${me.name} trades ${r} ${rn(a.give)} to the ${r === 4 ? 'bank' : 'harbor'} for 1 ${rn(a.get, 1)}.`);
       break;
     }
     case 'tradeOffer': {

@@ -7,7 +7,7 @@
 html, body { margin: 0; height: 100%; }
 body {
   font: 15px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink);
-  background: radial-gradient(ellipse at 50% 20%, rgba(255,214,150,.10), rgba(0,0,0,.55) 75%), url(art/table.jpg?v=3) center/360px #2a1a10;
+  background: radial-gradient(ellipse at 50% 20%, rgba(255,214,150,.10), rgba(0,0,0,.55) 75%), url(art/table.jpg?v=4) center/360px #2a1a10;
   background-attachment: fixed; overscroll-behavior-y: contain;
 }
 button { font: inherit; color: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 11px 14px; background: var(--paper2); font-weight: 600; touch-action: manipulation; }
@@ -269,3 +269,6 @@ body.build .game { animation: hShake .09s infinite, hDusty 2.6s ease forwards; }
 @keyframes cFall { 0% { opacity: 1; transform: translate(0, 0) rotate(0) } 100% { opacity: 1; transform: translate(var(--x), 110vh) rotate(var(--r)) } }
 @keyframes cSpark { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.4) } 100% { opacity: 0; transform: rotate(var(--a)) translateX(min(34vw, 190px)) scale(.4) } }
 @keyframes cRoyal { 0% { opacity: 0; transform: scale(.2) translateY(30px) } 25% { opacity: 1; transform: scale(1.15) rotate(-10deg) } 50% { transform: scale(1) rotate(10deg) translateY(-12px) } 75% { opacity: 1; transform: rotate(-6deg) } 100% { opacity: 0; transform: scale(.8) translateY(-40px) } }
+
+/* pink elephants (the 'brick' resource) */
+.pinkel { font-style: normal; display: inline-block; filter: sepia(1) saturate(3.2) hue-rotate(285deg) brightness(1.12); }
