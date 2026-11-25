@@ -152,10 +152,8 @@ function houseSVG(x, y, color, city) {
     <rect x="-10" y="1" width="5" height="6" rx="1" fill="#000" opacity=".35"/><rect x="4" y="5" width="4" height="6" fill="#000" opacity=".3"/><rect x="10" y="5" width="3" height="3" fill="#000" opacity=".3"/></g>`;
 }
 function robberSVG(x, y) {
-  return `<g transform="translate(${x},${y})" filter="url(#ds2)">
-    <ellipse cx="0" cy="15" rx="11" ry="4" fill="#000" opacity=".35"/>
-    <path d="M-10,15 C-10,6 -7,3 -5,-1 C-8,-3 -8,-9 -4,-10 C-6,-13 -6,-21 0,-21 C6,-21 6,-13 4,-10 C8,-9 8,-3 5,-1 C7,3 10,6 10,15 Z" fill="url(#pawn)" stroke="#0b0c0e" stroke-width="1"/>
-    <ellipse cx="-2.5" cy="-16" rx="2" ry="3" fill="#fff" opacity=".28"/></g>`;
+  // the robber piece is the custom statue image (sits to the left of the number token)
+  return `<g transform="translate(${x},${y})" filter="url(#ds2)"><ellipse cx="0" cy="-4" rx="17" ry="25" fill="#fff" opacity=".35" filter="url(#ds)"/><ellipse cx="0" cy="20" rx="13" ry="4" fill="#000" opacity=".4"/><image href="/img/robber.png?v=1" x="-15" y="-31" width="30" height="52" preserveAspectRatio="xMidYMax meet"/></g>`;
 }
 function boardSVG(mode) {
   const g = GEO, o = [DEFS()], L = S.legal || {};
@@ -197,7 +195,7 @@ function boardSVG(mode) {
   // buildings
   S.vertices.forEach((b, v) => { if (b) { const [x, y] = P(v); o.push(houseSVG(x, y, S.players[b.p].color, b.city)); } });
   // robber (sits to the left of the number)
-  { const cx = g.hexes[S.robber].x * U, cy = g.hexes[S.robber].y * U; o.push(robberSVG(cx - 30, cy + 2)); }
+  { const cx = g.hexes[S.robber].x * U, cy = g.hexes[S.robber].y * U; o.push(robberSVG(cx - 33, cy + 2)); }
   // tap targets
   const pk = ui.pick;
   if (mode === 'settlement' || mode === 'city') for (const v of (mode === 'city' ? L.city : L.settle) || []) {
