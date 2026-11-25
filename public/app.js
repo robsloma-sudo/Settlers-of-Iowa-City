@@ -38,6 +38,7 @@ function toast(m) {
 }
 function setState(r) {
   if (r.geo) GEO = r.geo;
+  if (r.players) for (const p of r.players) if (p.color === '#2f6fd6') p.color = '#3d8bff';
   if (S && r.version < S.version) return;
   S = r;
   if (S.turn && S.turn.rollId && S.turn.rollId !== lastRoll) { if (lastRoll !== null) rollAnim = Date.now(); lastRoll = S.turn.rollId; }
@@ -118,8 +119,8 @@ const DEFS = () => `<defs>
   <linearGradient id="roofL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
   <radialGradient id="pawn" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#7b7f88"/><stop offset="0.45" stop-color="#3a3d44"/><stop offset="1" stop-color="#121317"/></radialGradient>
   <linearGradient id="plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a77a4a"/><stop offset="1" stop-color="#6e4a2a"/></linearGradient>
-  <filter id="ds" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="1.6" dy="2.4" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter>
-  <filter id="ds2" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="2.5" dy="3.5" stdDeviation="2.4" flood-color="#000" flood-opacity=".5"/></filter>
+  <filter id="ds" filterUnits="userSpaceOnUse" x="-400" y="-400" width="800" height="800"><feDropShadow dx="1.6" dy="2.4" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter>
+  <filter id="ds2" filterUnits="userSpaceOnUse" x="-400" y="-400" width="800" height="800"><feDropShadow dx="2.5" dy="3.5" stdDeviation="2.4" flood-color="#000" flood-opacity=".5"/></filter>
 </defs>`;
 function houseSVG(x, y, color, city) {
   // drawn as a little 3-D wooden piece: front face, sunlit roof, darker side
@@ -175,7 +176,7 @@ function boardSVG(mode) {
     if (ow === null) return;
     const [ax, ay] = P(g.edges[e].a), [bx, by] = P(g.edges[e].b), t = 0.16;
     const c = `x1="${ax + (bx - ax) * t}" y1="${ay + (by - ay) * t}" x2="${bx + (ax - bx) * t}" y2="${by + (ay - by) * t}" stroke-linecap="round"`;
-    o.push(`<g filter="url(#ds)"><line ${c} stroke="#141414" stroke-width="10"/><line ${c} stroke="${S.players[ow].color}" stroke-width="7"/><line ${c} stroke="#fff" stroke-opacity=".35" stroke-width="2" transform="translate(-1,-1.2)"/></g>`);
+    o.push(`<g filter="url(#ds)"><line ${c} stroke="#fbf5e4" stroke-opacity=".9" stroke-width="13.5"/><line ${c} stroke="#141414" stroke-width="11"/><line ${c} stroke="${S.players[ow].color}" stroke-width="8"/><line ${c} stroke="#fff" stroke-opacity=".35" stroke-width="2" transform="translate(-1,-1.2)"/></g>`);
   });
   // buildings
   S.vertices.forEach((b, v) => { if (b) { const [x, y] = P(v); o.push(houseSVG(x, y, S.players[b.p].color, b.city)); } });

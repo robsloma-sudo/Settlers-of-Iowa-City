@@ -7,7 +7,7 @@ export const COST = {
   city: { grain: 2, ore: 3 },
   dev: { wool: 1, grain: 1, ore: 1 },
 };
-const COLORS = ['#d8443c', '#2f6fd6', '#f4f1e8', '#f08a1c'];
+const COLORS = ['#d8443c', '#3d8bff', '#f4f1e8', '#f08a1c'];
 const BOT_NAMES = ['Dubuque', 'Clinton', 'Gilbert', 'Linn', 'Burlington', 'Dodge'];
 const LIMITS = { road: 15, settlement: 5, city: 4 };
 const TOKENS = [5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11];
