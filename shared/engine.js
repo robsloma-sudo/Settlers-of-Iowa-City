@@ -129,6 +129,9 @@ function start(g) {
   g.longestRoad = null; g.largestArmy = null; g.trade = null; g.discards = {};
   g.phase = 'setup'; g.setup = { i: 0, step: 'settlement', last: null }; g.turn = null; g.winner = null;
   log(g, 'The game begins. ' + g.players.map(p => p.name).join(', ') + ' — place your first settlements.');
+  // house rule: the champion intro plays on every screen; computer players wait for it
+  g.intro = { id: (g.intro ? g.intro.id : 0) + 1 };
+  g.introUntil = Date.now() + INTRO_MS;
 }
 const setupOrder = g => { const n = g.players.length; return [...Array(n).keys(), ...[...Array(n).keys()].reverse()]; };
 export function actorIdx(g) {
@@ -232,6 +235,7 @@ function itsOn(g, i, e) {
 }
 // House rule: 30-second turn clock. It starts once the roll (and any robber business) is done.
 export const TURN_SECONDS = 30;
+export const INTRO_MS = 11500;
 function startClock(g) { if (!g.turn.deadline) g.turn.deadline = Date.now() + TURN_SECONDS * 1000; }
 const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; if (g.turn.rolled) startClock(g); };
 function nextTurn(g) {
@@ -564,7 +568,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, intro: g.intro || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

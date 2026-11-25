@@ -23,7 +23,7 @@ const store = {
 };
 
 let clockOffset = 0, peekedAt = {};
-let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, shows = [], showing = false;
+let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, lastIntro = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -46,9 +46,10 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0;
-  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; }   // don't replay old ones when a page opens
+  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0, it = S.intro ? S.intro.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; lastIntro = it; }   // don't replay old ones when a page opens
   else {
+    if (it > lastIntro) { lastIntro = it; shows.unshift([championIntro, 11700]); if (!showing) nextShow(); }
     if (pk > lastPeek) { lastPeek = pk; queueShow(() => catPeek(), 4300); }
     if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
     if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
@@ -370,7 +371,7 @@ function modalHTML() {
     <h3>Building costs</h3>
     <div class="seat"><b>Road</b>${costIcons(COST.road)}</div><div class="seat" style="margin-top:6px"><b>Settlement · 1 point</b>${costIcons(COST.settlement)}</div><div class="seat" style="margin-top:6px"><b>City · 2 points</b>${costIcons(COST.city)}</div><div class="seat" style="margin-top:6px"><b>Development card</b>${costIcons(COST.dev)}</div>
     <h3>Your turn</h3><ul><li><b>Roll.</b> Every hex with that number pays its neighbors: 1 card per settlement, 2 per city.</li><li><b>Trade</b> with other players, the bank (4:1) or your harbors (3:1 or 2:1).</li><li><b>Build</b> roads, settlements, cities, or buy development cards.</li></ul>
-    <h3>Rules to remember</h3><ul><li><b>30-second clock:</b> once you've rolled (and moved the robber, if it's a 7), you have 30 seconds to build and trade. When time runs out your turn passes to the next player.</li><li><b>Set-up:</b> both of your starting settlements give you one card for every land they touch.</li><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
+    <h3>Rules to remember</h3><ul><li><b>Every game</b> opens with the champion intro — buckle up.</li><li><b>30-second clock:</b> once you've rolled (and moved the robber, if it's a 7), you have 30 seconds to build and trade. When time runs out your turn passes to the next player.</li><li><b>Set-up:</b> both of your starting settlements give you one card for every land they touch.</li><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
     <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 sweet corn fields give corn · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
 }
@@ -414,6 +415,27 @@ function catPeek(src = '/img/peek-cat.jpg?v=1', ms = 4000) {
   el.style.cssText = `${pos};--from:${from};--to:${to};animation-duration:${ms}ms`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), ms + 100);
+}
+// start of every game: the champion intro (about 10 seconds of celebration, then a slow fade)
+function championIntro() {
+  const old = document.getElementById('champ'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'champ';
+  const R = (a, b) => a + Math.random() * (b - a);
+  const colors = ['#ffcd00', '#ff3d6e', '#3d8bff', '#2ecc71', '#ffffff', '#ff8a00', '#b06bff'];
+  const confetti = [...Array(90)].map(() => `<i class="cf" style="left:${R(0, 100).toFixed(1)}%;background:${colors[Math.floor(R(0, colors.length))]};--x:${R(-25, 25).toFixed(0)}vw;--r:${R(360, 1440).toFixed(0)}deg;width:${R(6, 11).toFixed(0)}px;height:${R(10, 18).toFixed(0)}px;animation-duration:${R(3.5, 6.5).toFixed(2)}s;animation-delay:${R(0.3, 6).toFixed(2)}s"></i>`).join('');
+  const fireworks = [...Array(12)].map((_, k) => {
+    const c = colors[k % colors.length], sparks = [...Array(18)].map((_, j) => `<b style="--a:${j * (360 / 18)}deg;background:${c};box-shadow:0 0 8px 2px ${c}"></b>`).join('');
+    return `<i class="fw" style="left:${R(10, 90).toFixed(0)}%;top:${R(6, 45).toFixed(0)}%;animation-delay:${(0.3 + k * 0.72 + R(0, 0.3)).toFixed(2)}s">${sparks}</i>`;
+  }).join('');
+  const royals = ['👑', '🥇', '🏆', '👸', '🤴', '🏅', '👑', '💰', '🎖️', '🎉', '🥇', '👑', '🎊', '✨', '🏆', '👸'].map((e, k) =>
+    `<span class="ry" style="left:${(4 + (k * 61) % 92)}%;top:${(8 + (k * 37) % 80)}%;animation-delay:${(0.6 + k * 0.28).toFixed(2)}s;font-size:${R(30, 50).toFixed(0)}px">${e}</span>`).join('');
+  el.innerHTML = `<div class="c-rays"></div>${fireworks}${royals}
+    <div class="c-stage"><div class="c-frame"><span class="c-crown">👑</span><img src="/img/champion.jpg?v=1" alt=""><span class="c-medal l">🥇</span><span class="c-medal r">🏅</span></div>
+    <div class="c-words"><b class="w1">You're about to face the champion.</b><b class="w2">Buckle up, dingleberry!</b></div></div>${confetti}`;
+  document.body.appendChild(el);
+  try { navigator.vibrate && navigator.vibrate([80, 60, 80, 60, 200]); } catch (e) { }
+  setTimeout(() => el.remove(), 11500);
 }
 function builtHome(name, pic) {
   const old = document.getElementById('home'); if (old) old.remove();

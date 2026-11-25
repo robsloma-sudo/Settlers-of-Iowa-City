@@ -50,9 +50,9 @@ export default async (req: Request) => {
       if (g.phase === "play" && g.turn.deadline && Date.now() >= g.turn.deadline) {
         try { g = (await mutate(code, (fresh) => (checkTimeout(fresh) ? undefined : false))).g; } catch (e) { /* someone else passed it on */ }
       }
-      if (botPending(g) && Date.now() - g.updated >= BOT_DELAY) {
+      if (botPending(g) && Date.now() - g.updated >= BOT_DELAY && !(g.introUntil && Date.now() < g.introUntil)) {
         try {
-          g = (await mutate(code, (fresh) => (botPending(fresh) && Date.now() - fresh.updated >= BOT_DELAY ? botStep(fresh) : false))).g;
+          g = (await mutate(code, (fresh) => (botPending(fresh) && Date.now() - fresh.updated >= BOT_DELAY && !(fresh.introUntil && Date.now() < fresh.introUntil) ? botStep(fresh) : false))).g;
         } catch (e) { /* another player's request moved the computer first */ }
       }
       if (g.version === known) return json({ same: true });

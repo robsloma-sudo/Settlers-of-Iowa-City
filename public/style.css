@@ -235,3 +235,37 @@ body.build .game { animation: hShake .09s infinite, hDusty 2.6s ease forwards; }
 .tmr { flex: none; background: var(--ink); color: #fff; font-weight: 800; font-size: 15px; border-radius: 10px; padding: 7px 9px; font-variant-numeric: tabular-nums; min-width: 58px; text-align: center; }
 .tmr.low { background: #c0392b; animation: tmrPulse 1s ease-in-out infinite; }
 @keyframes tmrPulse { 50% { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(192,57,43,.35) } }
+
+/* ---------- champion intro (start of every game) ---------- */
+#champ { position: fixed; inset: 0; z-index: 70; overflow: hidden; display: grid; place-items: center; pointer-events: auto;
+  background: radial-gradient(circle at 50% 42%, #3a2a05, #140c00 55%, #050300); animation: cFade 11.5s ease forwards; }
+#champ > i, #champ > span { position: absolute; }
+#champ .c-rays { position: absolute; inset: -60%; background: repeating-conic-gradient(from 0deg, rgba(255,205,0,.22) 0 8deg, rgba(255,205,0,0) 8deg 20deg); animation: cSpin 14s linear infinite; }
+#champ .c-stage { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 14px; }
+#champ .c-frame { position: relative; width: min(64vw, 340px); padding: 7px; border-radius: 14px; background: linear-gradient(135deg, #fff3b0, #d4a017 30%, #fff0a0 50%, #b8860b 75%, #ffe680);
+  box-shadow: 0 0 40px rgba(255,205,0,.7), 0 18px 40px rgba(0,0,0,.7); animation: cPop 11.5s cubic-bezier(.2,1.3,.4,1) forwards; }
+#champ .c-frame img { display: block; width: 100%; max-height: 46dvh; object-fit: cover; border-radius: 9px; }
+#champ .c-crown { position: absolute; left: 50%; top: -46px; font-size: 64px; transform: translateX(-50%) rotate(-8deg); filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); animation: cCrown 1.6s ease-in-out .9s infinite alternate; }
+#champ .c-medal { position: absolute; bottom: -18px; font-size: 52px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); transform-origin: 50% 0; animation: cSwing 1.2s ease-in-out infinite alternate; }
+#champ .c-medal.l { left: -22px; } #champ .c-medal.r { right: -22px; animation-delay: .6s; }
+#champ .c-words { text-align: center; background: radial-gradient(ellipse at center, rgba(10,5,0,.85), rgba(10,5,0,.6) 70%, rgba(10,5,0,0)); padding: 12px 18px; border-radius: 20px; }
+#champ .c-words b { display: block; font: 900 clamp(22px, 7vw, 38px)/1.1 Georgia, "Times New Roman", serif; letter-spacing: .3px;
+  background: linear-gradient(#fffbe0, #ffd700 40%, #e3a008 70%, #fff3b0); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #4a3000) drop-shadow(0 0 14px rgba(255,200,0,.6)); opacity: 0; }
+#champ .c-words .w1 { animation: cFlyL 1s cubic-bezier(.2,1.2,.4,1) 1.4s forwards; }
+#champ .c-words .w2 { font-size: clamp(28px, 9.5vw, 52px); margin-top: 6px; animation: cFlyR 1s cubic-bezier(.2,1.2,.4,1) 2.6s forwards, cBeat .9s ease-in-out 3.8s 7 alternate; }
+#champ .cf { top: -24px; border-radius: 2px; opacity: 0; animation-name: cFall; animation-timing-function: linear; animation-fill-mode: forwards; z-index: 4; }
+#champ .fw { width: 0; height: 0; z-index: 2; }
+#champ .fw b { position: absolute; width: 9px; height: 9px; border-radius: 50%; opacity: 0; transform: rotate(var(--a)) translateX(0); animation: cSpark 1.4s ease-out forwards; animation-delay: inherit; }
+#champ .ry { z-index: 2; opacity: 0; filter: drop-shadow(0 3px 4px rgba(0,0,0,.6)); animation: cRoyal 3.2s ease-in-out forwards; }
+@keyframes cFade { 0% { opacity: 0 } 3% { opacity: 1 } 86% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes cSpin { to { transform: rotate(360deg) } }
+@keyframes cPop { 0% { opacity: 0; transform: scale(.1) rotate(-20deg) } 7% { opacity: 1; transform: scale(1.12) rotate(4deg) } 10% { transform: scale(.96) rotate(-2deg) } 13% { transform: scale(1) rotate(0) } 50% { transform: scale(1.03) } 86% { opacity: 1; transform: scale(1) } 100% { opacity: 0; transform: scale(.92) } }
+@keyframes cCrown { to { transform: translateX(-50%) rotate(8deg) translateY(-6px) } }
+@keyframes cSwing { from { transform: rotate(-14deg) } to { transform: rotate(14deg) } }
+@keyframes cFlyL { 0% { opacity: 0; transform: translateX(-120vw) rotate(-6deg) } 70% { opacity: 1; transform: translateX(4vw) } 100% { opacity: 1; transform: none } }
+@keyframes cFlyR { 0% { opacity: 0; transform: translateX(120vw) rotate(6deg) scale(1.3) } 70% { opacity: 1; transform: translateX(-4vw) } 100% { opacity: 1; transform: none } }
+@keyframes cBeat { to { transform: scale(1.08) } }
+@keyframes cFall { 0% { opacity: 1; transform: translate(0, 0) rotate(0) } 100% { opacity: 1; transform: translate(var(--x), 110vh) rotate(var(--r)) } }
+@keyframes cSpark { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.4) } 100% { opacity: 0; transform: rotate(var(--a)) translateX(min(34vw, 190px)) scale(.4) } }
+@keyframes cRoyal { 0% { opacity: 0; transform: scale(.2) translateY(30px) } 25% { opacity: 1; transform: scale(1.15) rotate(-10deg) } 50% { transform: scale(1) rotate(10deg) translateY(-12px) } 75% { opacity: 1; transform: rotate(-6deg) } 100% { opacity: 0; transform: scale(.8) translateY(-40px) } }
