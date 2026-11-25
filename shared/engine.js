@@ -209,6 +209,18 @@ function kennedy(g, i) {
   g.special = { id: (g.special ? g.special.id : 0) + 1, player: i };
   log(g, `🎉 Kennedy Special! ${nm(g, i)} built a road and bought a development card in the same turn.`);
 }
+// House rule: when a new road ends at a corner where another player's road
+// already touches, every screen gets the "It's On" blast.
+function itsOn(g, i, e) {
+  for (const v of [E[e].a, E[e].b]) {
+    const other = V[v].edges.map(x => g.edges[x]).find(o => o !== null && o !== i);
+    if (other !== undefined) {
+      g.boom = { id: (g.boom ? g.boom.id : 0) + 1, player: i, other };
+      log(g, `💥 It's on! ${nm(g, i)}'s road just ran into ${nm(g, other)}'s.`);
+      return;
+    }
+  }
+}
 const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; };
 function checkWin(g) {
   if (g.phase !== 'play') return;
@@ -309,7 +321,7 @@ export function applyAction(g, pid, a) {
     }
     if (a.type === 'road' && s.step === 'road') {
       if (!canRoad(g, a.e, i, s.last)) fail('That road must touch the settlement you just placed.');
-      g.edges[a.e] = i; s.i++; s.step = 'settlement'; s.last = null;
+      g.edges[a.e] = i; itsOn(g, i, a.e); s.i++; s.step = 'settlement'; s.last = null;
       if (s.i >= g.players.length * 2) {
         g.phase = 'play'; g.setup = null;
         g.turn = { idx: 0, num: 1, phase: 'roll', rolled: false, devPlayed: false, dice: null, free: 0 };
@@ -377,7 +389,7 @@ export function applyAction(g, pid, a) {
       if (!canRoad(g, a.e, i)) fail('You cannot build a road there.');
       if (!free) { if (!has(me.res, COST.road)) fail('You cannot afford a road.'); pay(g, i, COST.road); }
       g.edges[a.e] = i; log(g, `${me.name} builds a road.`);
-      T.builtRoad = true; kennedy(g, i);
+      itsOn(g, i, a.e); T.builtRoad = true; kennedy(g, i);
       updateLongestRoad(g);
       if (free) { T.free--; if (T.free <= 0 || !legalRoads(g, i).length) { T.free = 0; resume(g); } }
       break;
@@ -506,7 +518,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

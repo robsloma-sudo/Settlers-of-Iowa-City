@@ -21,7 +21,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('sic.' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
-let lastSpecial = null;
+let lastSpecial = null, lastBoom = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -43,8 +43,12 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  if (lastSpecial === null) lastSpecial = sp;               // don't replay old ones when a page opens
-  else if (sp > lastSpecial) { lastSpecial = sp; kennedySpecial(S.players[S.special.player].name); }
+  const bm = S.boom ? S.boom.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; }   // don't replay old ones when a page opens
+  else {
+    if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
+    if (sp > lastSpecial) { lastSpecial = sp; const n = S.players[S.special.player].name; queueShow(() => kennedySpecial(n)); }
+  }
   if (S.turn && S.turn.rollId && S.turn.rollId !== lastRoll) { if (lastRoll !== null) rollAnim = Date.now(); lastRoll = S.turn.rollId; }
   else if (lastRoll === null) lastRoll = (S.turn && S.turn.rollId) || 0;
   if (!(S.phase === 'play' && S.actor === S.you && S.turn.phase === 'main')) ui.mode = null;
@@ -348,6 +352,26 @@ function modalHTML() {
     <h3>Rules to remember</h3><ul><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
     <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 fields give grain · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
+}
+
+/* ---------------- house-rule shows (played one after another) ---------------- */
+function queueShow(fn) { shows.push(fn); if (!showing) nextShow(); }
+function nextShow() {
+  const fn = shows.shift();
+  if (!fn) { showing = false; return; }
+  showing = true; fn(); setTimeout(nextShow, 5200);
+}
+function itsOn(name, other) {
+  const old = document.getElementById('boom'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'boom';
+  const sparks = [...Array(16)].map((_, k) => { const a = k / 16 * 360 + Math.random() * 18, d = 38 + Math.random() * 30; return `<i style="--a:${a}deg;--d:${d}vmax;--t:${(0.9 + Math.random() * 0.9).toFixed(2)}s"></i>`; }).join('');
+  el.innerHTML = `<div class="b-flash"></div><div class="b-stem"></div><div class="b-ball"></div><div class="b-cap"></div><div class="b-ring"></div><div class="b-ring r2"></div><div class="b-sparks">${sparks}</div>
+    <img class="b-cat" src="/img/cat.jpg?v=1" alt=""><div class="b-text"><b>IT'S ON</b><small>${esc(name)}'s road just ran into ${esc(other)}'s</small></div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('nuke');
+  try { navigator.vibrate && navigator.vibrate([400, 80, 250, 80, 600]); } catch (e) { }
+  setTimeout(() => { el.remove(); document.body.classList.remove('nuke'); }, 5000);
 }
 
 /* ---------------- Kennedy Special (house rule show) ---------------- */
