@@ -425,6 +425,7 @@ export function applyAction(g, pid, a) {
       pay(g, i, COST.dev);
       const t = g.devDeck.pop(); me.dev.push({ t, n: T.num });
       T.boughtDev = true;
+      g.peek = { id: (g.peek ? g.peek.id : 0) + 1, player: i };   // house rule: the cat peeks in
       log(g, `${me.name} buys a development card.`, { [i]: `You bought a development card: ${DEV_NAMES[t]}.` });
       kennedy(g, i);
       break;
@@ -526,7 +527,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

@@ -22,7 +22,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('sic.' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
-let lastSpecial = null, lastBoom = null, lastHome = null, shows = [], showing = false;
+let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -44,9 +44,10 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0;
-  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; }   // don't replay old ones when a page opens
+  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; }   // don't replay old ones when a page opens
   else {
+    if (pk > lastPeek) { lastPeek = pk; queueShow(catPeek, 4300); }
     if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
     if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
     if (sp > lastSpecial) { lastSpecial = sp; const n = S.players[S.special.player].name; queueShow(() => kennedySpecial(n)); }
@@ -357,11 +358,30 @@ function modalHTML() {
 }
 
 /* ---------------- house-rule shows (played one after another) ---------------- */
-function queueShow(fn) { shows.push(fn); if (!showing) nextShow(); }
+function queueShow(fn, ms = 5200) { shows.push([fn, ms]); if (!showing) nextShow(); }
 function nextShow() {
-  const fn = shows.shift();
-  if (!fn) { showing = false; return; }
-  showing = true; fn(); setTimeout(nextShow, 5200);
+  const next = shows.shift();
+  if (!next) { showing = false; return; }
+  showing = true; next[0](); setTimeout(nextShow, next[1]);
+}
+// the cat slides in from a random edge or corner, waits, and slides back out the same way
+function catPeek() {
+  const spots = [
+    ['top:2%;left:50%', 'translate(-50%,-120%) rotate(180deg)', 'translate(-50%,0) rotate(180deg)'],
+    ['top:2%;left:2%', 'translate(-120%,-120%) rotate(135deg)', 'translate(0,0) rotate(150deg)'],
+    ['top:2%;right:2%', 'translate(120%,-120%) rotate(-135deg)', 'translate(0,0) rotate(-150deg)'],
+    ['top:38%;left:1%', 'translate(-130%,0) rotate(90deg)', 'translate(0,0) rotate(80deg)'],
+    ['top:38%;right:1%', 'translate(130%,0) rotate(-90deg)', 'translate(0,0) rotate(-80deg)'],
+    ['bottom:2%;left:2%', 'translate(-120%,120%) rotate(30deg)', 'translate(0,0) rotate(18deg)'],
+    ['bottom:2%;right:2%', 'translate(120%,120%) rotate(-30deg)', 'translate(0,0) rotate(-18deg)'],
+    ['bottom:2%;left:50%', 'translate(-50%,120%)', 'translate(-50%,0) rotate(-4deg)'],
+  ];
+  const [pos, from, to] = spots[Math.floor(Math.random() * spots.length)];
+  const el = document.createElement('img');
+  el.className = 'peek-cat'; el.src = '/img/peek-cat.jpg?v=1'; el.alt = '';
+  el.style.cssText = `${pos};--from:${from};--to:${to}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4100);
 }
 function builtHome(name, pic) {
   const old = document.getElementById('home'); if (old) old.remove();

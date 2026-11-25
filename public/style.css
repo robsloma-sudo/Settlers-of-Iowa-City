@@ -225,3 +225,8 @@ body.build .game { animation: hShake .09s infinite, hDusty 2.6s ease forwards; }
 @keyframes hYay { to { transform: scale(1.15) rotate(-3deg) } }
 @keyframes hShake { 0% { transform: translate(0, 0) } 25% { transform: translate(-3px, 2px) } 50% { transform: translate(3px, -2px) } 75% { transform: translate(-2px, -3px) } 100% { transform: translate(2px, 3px) } }
 @keyframes hDusty { 0% { filter: sepia(.7) blur(2px) brightness(1.1) } 100% { filter: none } }
+
+/* ---------- the cat peeks in (development card bought) ---------- */
+.peek-cat { position: fixed; z-index: 58; width: min(38vw, 220px); border-radius: 14px; border: 5px solid #fffdf6; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+  pointer-events: none; transform: var(--from); animation: peek 4s ease-in-out forwards; }
+@keyframes peek { 0% { transform: var(--from) } 32% { transform: var(--to) } 68% { transform: var(--to) } 100% { transform: var(--from) } }
