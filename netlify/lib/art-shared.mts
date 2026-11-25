@@ -6,7 +6,7 @@ const TILE = "Square image. Strict top-down orthographic view from directly over
 
 export const PROMPTS: Record<string, string> = {
   wool: `A lush green Iowa pasture seen from above, with four or five fluffy white sheep with dark faces grazing, short bright grass with tiny wildflowers. ${TILE}`,
-  grain: `A ripe golden Iowa wheat field seen from above, neat crop rows, heavy grain heads in sharp focus, warm late-afternoon light. ${TILE}`,
+  grain: `An Iowa sweet corn field in late summer seen from directly above: neat rows of tall green corn plants with golden tassels, and a small pile of freshly picked ears of yellow sweet corn with peeled-back green husks. ${TILE}`,
   brick: `Rolling red clay hills seen from above with a small brickyard: neat stacked pallets of fired terracotta bricks on reddish-orange earth with patches of dry grass. ${TILE}`,
   lumber: `A dense forest canopy seen from above, mixed oak and pine crowns in deep greens, with a small clearing holding a stack of freshly cut timber logs. ${TILE}`,
   ore: `Rugged grey granite mountains and a stone quarry seen from above, rocky ridges, cut grey stone blocks and rubble with glints of metallic ore. ${TILE}`,

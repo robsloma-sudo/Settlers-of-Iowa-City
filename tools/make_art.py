@@ -122,31 +122,83 @@ def pasture():
     render('wool', alb, h, shadow_len=34, slope=0.75)
 
 
-# ------------------------------------------------------------------ grain (wheat)
+# ------------------------------------------------------------------ grain -> sweet corn field
+def _leaf(h, alb, r, x, y, ang, L, W, base, colr, bend):
+    pad = int(L + W + 4)
+    y0, y1, x0, x1 = max(0, int(y) - pad), min(N, int(y) + pad), max(0, int(x) - pad), min(N, int(x) + pad)
+    if y0 >= y1 or x0 >= x1:
+        return
+    X, Y = xx[y0:y1, x0:x1] - x, yy[y0:y1, x0:x1] - y
+    u = X * np.cos(ang) + Y * np.sin(ang)
+    v = -X * np.sin(ang) + Y * np.cos(ang) - bend * (u / L) ** 2 * L
+    t = u / L
+    w = W * np.clip(np.sin(np.pi * np.clip(t, 0, 1)) ** 0.55, 0, 1) * (1 - 0.35 * t)
+    m = (t > 0) & (t < 1) & (np.abs(v) < w)
+    hh = base + 10 * np.sin(np.pi * np.clip(t, 0, 1) * 0.6) - 26 * np.clip(t, 0, 1) ** 1.6 + (1 - np.abs(v) / (w + 1e-6)) * 2.2
+    up = m & (hh > h[y0:y1, x0:x1])
+    rib = np.abs(v) < np.maximum(w * 0.14, 0.7)
+    c = np.where(rib[..., None], np.minimum(colr * 1.35, 1), colr * (0.85 + 0.25 * (1 - np.abs(v) / (w + 1e-6)))[..., None])
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    alb[y0:y1, x0:x1] = np.where(up[..., None], c, alb[y0:y1, x0:x1])
+
+
+def _ear(h, alb, r, x, y, ang, z):
+    L, W = 46, 15
+    pad = 66
+    y0, y1, x0, x1 = max(0, int(y) - pad), min(N, int(y) + pad), max(0, int(x) - pad), min(N, int(x) + pad)
+    X, Y = xx[y0:y1, x0:x1] - x, yy[y0:y1, x0:x1] - y
+    u = X * np.cos(ang) + Y * np.sin(ang)
+    v = -X * np.sin(ang) + Y * np.cos(ang)
+    # husk leaves peeled back from the stem end
+    for k, sp in enumerate((-0.55, 0.0, 0.5)):
+        _leaf(h, alb, r, x - np.cos(ang) * L * 0.9, y - np.sin(ang) * L * 0.9, ang + np.pi + sp, 42, 11, z + 2,
+              col(['7da343', '9bbd55', '6e9a3a'][k]), r.uniform(-0.15, 0.15))
+    W_u = W * np.sqrt(np.clip(1 - (u / L) ** 2, 0, 1)) * (1 - 0.18 * (u / L))
+    m = np.abs(v) < W_u
+    cyl = np.sqrt(np.clip(1 - (v / (W_u + 1e-6)) ** 2, 0, 1)) * W
+    kern = (np.sin(u * 1.9) * np.sin(v * 2.4 + 0.6)) ** 2
+    hh = z + cyl + kern * 1.6
+    up = m & (hh > h[y0:y1, x0:x1])
+    c = mix(col('e0a925'), col('fbe27a'), kern * 0.9 + 0.1)
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    alb[y0:y1, x0:x1] = np.where(up[..., None], c, alb[y0:y1, x0:x1])
+
+
 def grain():
-    r = rng(22)
-    ang = np.deg2rad(32)
-    u = xx * np.cos(ang) + yy * np.sin(ang)
-    rows = np.sin(u / 22 * 2 * np.pi * 0.5)
-    stalks = fbm(r, 1.4, 2, aniso=(3.5, 0.6))
-    h = rows * 2.2 + stalks * 1.6 + fbm(r, 30, 3) * 1.5
-    alb = mix(col('b7862a'), col('f0cf6a'), stalks * 0.25 + 0.55 + rows * 0.12)
-    alb = mix(alb, col('8f6a22'), np.clip(-rows - 0.6, 0, 1))
-    # grain heads: lots of small elongated kernels
-    heads = np.zeros_like(h)
-    for _ in range(1500):
-        x, y = r.uniform(0, N, 2)
-        a2 = ang + r.normal(0, 0.35)
-        L, W = r.uniform(12, 18), r.uniform(3.6, 5.0)
-        uu = (xx - x) * np.cos(a2) + (yy - y) * np.sin(a2)
-        vv = -(xx - x) * np.sin(a2) + (yy - y) * np.cos(a2)
-        sl = (slice(max(0, int(y) - 22), int(y) + 22), slice(max(0, int(x) - 22), int(x) + 22))
-        e = (uu[sl] / L) ** 2 + (vv[sl] / W) ** 2
-        bump = np.sqrt(np.clip(1 - e, 0, 1)) * 5 * (1 + 0.3 * np.sin(uu[sl] * 1.1))
-        heads[sl] = np.maximum(heads[sl], bump)
-    h += heads
-    alb = mix(alb, col('f6dc86'), np.clip(heads / 5, 0, 1) * 0.6)
-    render('grain', alb, h, shadow_len=14, slope=0.8, strength=1.0)
+    r = rng(23)
+    h = fbm(r, 30, 3) * 2 + fbm(r, 2, 2) * 0.6
+    alb = mix(col('4a3522'), col('6b5034'), fbm(r, 8, 3) * 0.3 + 0.5)   # dark Iowa soil between rows
+    ang = np.deg2rad(28)
+    greens = ['9bb43e', 'a9bd48', '8aa538', 'b8c454', '7f9b33', 'c2c25a']
+    plants = []
+    row_gap, step = 78, 52
+    for ri in range(-12, 13):
+        for k in range(-12, 13):
+            px = N / 2 + ri * row_gap * -np.sin(ang) + k * step * np.cos(ang) + r.normal(0, 4)
+            py = N / 2 + ri * row_gap * np.cos(ang) + k * step * np.sin(ang) + r.normal(0, 4)
+            if -40 < px < N + 40 and -40 < py < N + 40:
+                plants.append((px, py))
+    r.shuffle(plants)
+    piles = [(0.27 * N, 0.3 * N), (0.72 * N, 0.74 * N)]
+    for (px, py) in plants:
+        if any(np.hypot(px - a, py - b) < 80 for a, b in piles):
+            continue
+        base = 34 + r.uniform(-4, 6)
+        for j in range(r.integers(7, 11)):
+            a2 = r.uniform(0, 2 * np.pi)
+            _leaf(h, alb, r, px, py, a2, r.uniform(46, 74), r.uniform(5.5, 8.5), base - j * 0.6,
+                  col(greens[r.integers(0, len(greens))]), r.uniform(-0.25, 0.25))
+        # golden tassel at the top of the stalk
+        for j in range(10):
+            a2 = r.uniform(0, 2 * np.pi)
+            _leaf(h, alb, r, px, py, a2, r.uniform(14, 24), 2.6, base + 12, col(['e7bd4f', 'd49a2e', 'f3d77c'][j % 3]), 0)
+    # two little piles of freshly picked, half-shucked sweet corn
+    for (cx, cy) in piles:
+        clearing = np.hypot(xx - cx, yy - cy) < 76 + fbm(r, 4, 2) * 4
+        alb[clearing] = mix(col('6b5034'), col('8a6a44'), 0.5)
+        for k in range(7):
+            _ear(h, alb, r, cx + r.normal(0, 17), cy + r.normal(0, 17), r.uniform(0, 2 * np.pi), 4 + k * 3)
+    render('grain', alb, h, shadow_len=30, slope=0.9, ambient=0.5, strength=0.75)
 
 
 # ------------------------------------------------------------------ brick (hills + brickyard)

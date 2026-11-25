@@ -1,6 +1,7 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
+const NAME = { brick: 'brick', lumber: 'lumber', wool: 'wool', grain: 'corn', ore: 'ore' };
 const ICON = { brick: '🧱', lumber: '🌲', wool: '🐑', grain: '🌽', ore: '⛰️', desert: '🌵' };
 const FILL = { brick: '#c8673b', lumber: '#2f7d3a', wool: '#9bcb58', grain: '#e8c23c', ore: '#8a8e99', desert: '#e2d3a1' };
 const COST = {
@@ -83,7 +84,7 @@ function enter(code, token) {
 function leave() { session = null; S = null; store.set('session', null); clearTimeout(timer); history.replaceState(null, '', location.pathname); render(); }
 
 /* ---------------- home & lobby ---------------- */
-const LOGO = `<svg class="hexlogo" viewBox="0 0 100 100"><defs><clipPath id="lgc"><polygon points="50,6 89,28 89,72 50,94 11,72 11,28"/></clipPath></defs><polygon points="50,2 93,26 93,74 50,98 7,74 7,26" fill="#ffcd00" stroke="#16181c" stroke-width="3"/><image href="/art/grain.jpg?v=2" x="5" y="5" width="90" height="90" clip-path="url(#lgc)" preserveAspectRatio="xMidYMid slice"/><polygon points="50,6 89,28 89,72 50,94 11,72 11,28" fill="none" stroke="#16181c" stroke-width="2"/><g transform="translate(50,57)"><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="#d8443c" stroke="#141414" stroke-width="2.5" stroke-linejoin="round"/><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="url(#lgg)"/><rect x="-5" y="3" width="10" height="11" rx="1.5" fill="#000" opacity=".35"/></g><defs><linearGradient id="lgg" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient></defs></svg>`;
+const LOGO = `<svg class="hexlogo" viewBox="0 0 100 100"><defs><clipPath id="lgc"><polygon points="50,6 89,28 89,72 50,94 11,72 11,28"/></clipPath></defs><polygon points="50,2 93,26 93,74 50,98 7,74 7,26" fill="#ffcd00" stroke="#16181c" stroke-width="3"/><image href="/art/grain.jpg?v=3" x="5" y="5" width="90" height="90" clip-path="url(#lgc)" preserveAspectRatio="xMidYMid slice"/><polygon points="50,6 89,28 89,72 50,94 11,72 11,28" fill="none" stroke="#16181c" stroke-width="2"/><g transform="translate(50,57)"><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="#d8443c" stroke="#141414" stroke-width="2.5" stroke-linejoin="round"/><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="url(#lgg)"/><rect x="-5" y="3" width="10" height="11" rx="1.5" fill="#000" opacity=".35"/></g><defs><linearGradient id="lgg" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient></defs></svg>`;
 function homeHTML() {
   const name = store.get('name') || '';
   return `<div class="home">
@@ -112,7 +113,7 @@ function lobbyHTML() {
 }
 
 /* ---------------- board ---------------- */
-const ART_V = 2;
+const ART_V = 3;
 let ART = {};   // resource -> image url (AI art when available, else hand-made)
 const artURL = r => ART[r] || `/art/${r}.jpg?v=${ART_V}`;
 const hexPts = (r, cx = 0, cy = 0) => [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 180 * (60 * i - 30); return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
@@ -274,7 +275,7 @@ function gameHTML() {
     ${me.bot && me.wasHuman ? `<div class="banner"><span>The computer is playing your seat.</span><button class="small primary" data-a="send" data-j='{"type":"unbot"}'>Take back control</button></div>` : ''}
     <div class="status ${mine() && S.phase !== 'over' ? 'mine' : ''}"><div class="msg">${esc(msg)}<small>${esc(ui.pick || mine() ? sub : (last ? last.m : sub))}</small></div>${right}</div>
     <div class="boardwrap">${boardSVG(mode)}</div>
-    <div class="hand">${RES.map(r => `<div class="rc ${me.res[r] ? '' : 'zero'}" style="background-image:url('${artURL(r)}')"><b>${me.res[r]}</b><small>${r}</small></div>`).join('')}</div>
+    <div class="hand">${RES.map(r => `<div class="rc ${me.res[r] ? '' : 'zero'}" style="background-image:url('${artURL(r)}')"><b>${me.res[r]}</b><small>${NAME[r]}</small></div>`).join('')}</div>
     <div class="actions">${b.join('')}</div>
   </div>`;
 }
@@ -290,7 +291,7 @@ function forced() {
 }
 const sum = o => RES.reduce((s, r) => s + (o[r] || 0), 0);
 const resLine = o => RES.filter(r => o[r]).map(r => `<b>${o[r]}</b> ${ICON[r]}`).join(' &nbsp; ') || '—';
-const stepper = (key, r, max, note) => `<div class="step"><span class="l">${ICON[r]} ${r} <small>${note}</small></span><button data-a="step" data-o="${key}" data-r="${r}" data-d="-1" ${ui[key][r] ? '' : 'disabled'}>−</button><span class="v">${ui[key][r] || 0}</span><button data-a="step" data-o="${key}" data-r="${r}" data-d="1" ${(ui[key][r] || 0) < max ? '' : 'disabled'}>+</button></div>`;
+const stepper = (key, r, max, note) => `<div class="step"><span class="l">${ICON[r]} ${NAME[r]} <small>${note}</small></span><button data-a="step" data-o="${key}" data-r="${r}" data-d="-1" ${ui[key][r] ? '' : 'disabled'}>−</button><span class="v">${ui[key][r] || 0}</span><button data-a="step" data-o="${key}" data-r="${r}" data-d="1" ${(ui[key][r] || 0) < max ? '' : 'disabled'}>+</button></div>`;
 const head = (t, closable = true) => `<h2>${t}${closable ? '<button class="small" data-a="close">Close</button>' : ''}</h2>`;
 
 function modalHTML() {
@@ -339,8 +340,8 @@ function modalHTML() {
     }).join('');
     return `<div class="sheet">${head('Your development cards')}${rows || '<div class="hint">You have none yet. Buy them from the Build menu (🐑🌽⛰️).</div>'}<div class="hint" style="margin-top:10px">You can play one development card per turn, before or after rolling.${T.devPlayed && mine() ? ' You already played one this turn.' : ''}</div></div>`;
   }
-  if (m === 'yop') return `<div class="sheet">${head('Year of Plenty — pick 2')}<div class="pick">${RES.map(r => `<button data-a="yop" data-r="${r}" ${S.bank[r] > ui.yop.filter(x => x === r).length ? '' : 'disabled'}>${ICON[r]}<small>${ui.yop.filter(x => x === r).length ? '× ' + ui.yop.filter(x => x === r).length : r}</small></button>`).join('')}</div><div class="row"><button data-a="yopClear">Clear</button><button class="primary" data-a="yopGo" ${ui.yop.length === 2 ? '' : 'disabled'}>Take ${ui.yop.map(r => ICON[r]).join(' ')}</button></div></div>`;
-  if (m === 'mono') return `<div class="sheet">${head('Monopoly — name a resource')}<div class="pick">${RES.map(r => `<button data-a="send" data-close="1" data-j='{"type":"playDev","card":"mono","res":"${r}"}'>${ICON[r]}<small>${r}</small></button>`).join('')}</div></div>`;
+  if (m === 'yop') return `<div class="sheet">${head('Year of Plenty — pick 2')}<div class="pick">${RES.map(r => `<button data-a="yop" data-r="${r}" ${S.bank[r] > ui.yop.filter(x => x === r).length ? '' : 'disabled'}>${ICON[r]}<small>${ui.yop.filter(x => x === r).length ? '× ' + ui.yop.filter(x => x === r).length : NAME[r]}</small></button>`).join('')}</div><div class="row"><button data-a="yopClear">Clear</button><button class="primary" data-a="yopGo" ${ui.yop.length === 2 ? '' : 'disabled'}>Take ${ui.yop.map(r => ICON[r]).join(' ')}</button></div></div>`;
+  if (m === 'mono') return `<div class="sheet">${head('Monopoly — name a resource')}<div class="pick">${RES.map(r => `<button data-a="send" data-close="1" data-j='{"type":"playDev","card":"mono","res":"${r}"}'>${ICON[r]}<small>${NAME[r]}</small></button>`).join('')}</div></div>`;
   if (m === 'log') {
     const hostTools = S.you === S.host && S.phase !== 'over' ? S.players.map((p, i) => i === S.you || p.bot ? '' : `<button class="small ghost" style="margin:6px 6px 0 0" data-a="send" data-j='{"type":"botify","seat":${i}}'>Let the computer play for ${esc(p.name)}</button>`).join('') : '';
     return `<div class="sheet">${head('Game log & chat')}<div class="log" id="log">${S.log.map(l => l.chat != null ? `<div class="chat"><span style="color:${S.players[l.chat] ? '#16181c' : ''}">${esc(S.players[l.chat] ? S.players[l.chat].name : '?')}:</span> ${esc(l.m)}</div>` : `<div>${esc(l.m)}</div>`).join('')}</div><div class="row"><input id="chat" maxlength="140" placeholder="Say something…" value="${esc(ui.chat)}" style="flex:3"><button class="dark" data-a="chat">Send</button></div>${hostTools ? '<h3>Host</h3>' + hostTools : ''}<div class="row"><button class="ghost" data-a="share">Share invite link</button><button class="ghost" data-a="leave">Leave game</button></div></div>`;
@@ -350,7 +351,7 @@ function modalHTML() {
     <div class="seat"><b>Road</b>${costIcons(COST.road)}</div><div class="seat" style="margin-top:6px"><b>Settlement · 1 point</b>${costIcons(COST.settlement)}</div><div class="seat" style="margin-top:6px"><b>City · 2 points</b>${costIcons(COST.city)}</div><div class="seat" style="margin-top:6px"><b>Development card</b>${costIcons(COST.dev)}</div>
     <h3>Your turn</h3><ul><li><b>Roll.</b> Every hex with that number pays its neighbors: 1 card per settlement, 2 per city.</li><li><b>Trade</b> with other players, the bank (4:1) or your harbors (3:1 or 2:1).</li><li><b>Build</b> roads, settlements, cities, or buy development cards.</li></ul>
     <h3>Rules to remember</h3><ul><li><b>Set-up:</b> both of your starting settlements give you one card for every land they touch.</li><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
-    <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 fields give grain · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
+    <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 sweet corn fields give corn · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
 }
 

@@ -34,7 +34,7 @@
 <script>
 const key = new URLSearchParams(location.search).get('key') || '';
 const NAMES = ['wool', 'grain', 'brick', 'lumber', 'ore', 'desert', 'sea', 'table'];
-const LABEL = { wool: 'Pasture (wool)', grain: 'Wheat field (grain)', brick: 'Hills (brick)', lumber: 'Forest (lumber)', ore: 'Mountains (ore)', desert: 'Desert', sea: 'Sea', table: 'Tabletop' };
+const LABEL = { wool: 'Pasture (wool)', grain: 'Sweet corn field (corn)', brick: 'Hills (brick)', lumber: 'Forest (lumber)', ore: 'Mountains (ore)', desert: 'Desert', sea: 'Sea', table: 'Tabletop' };
 const $ = s => document.querySelector(s);
 let S = null, timer;
 function toast(m) { const d = document.createElement('div'); d.textContent = m; $('#toast').appendChild(d); setTimeout(() => d.remove(), 3500); }
@@ -53,7 +53,7 @@ async function load() {
   }
   $('#grid').innerHTML = NAMES.map(n => {
     const ai = S.images && S.images[n];
-    const src = ai ? `/ai-art/${n}?v=${ai}` : `/art/${n}.jpg?v=2`;
+    const src = ai ? `/ai-art/${n}?v=${ai}` : `/art/${n}.jpg?v=3`;
     const err = S.errors && S.errors[n];
     return `<div class="tile"><img src="${src}" alt="${LABEL[n]}"><div class="meta"><b>${LABEL[n]}</b><span class="tag ${ai ? 'ai' : ''}">${ai ? 'OpenAI' : 'Hand-made'}</span></div>
       <div class="meta"><button class="small" data-redo="${n}" ${key ? '' : 'disabled'}>${ai ? 'Redo' : 'Make'}</button>${ai ? `<button class="small ghost" data-undo="${n}">Use hand-made</button>` : ''}</div>${err ? `<div class="err">${err.replace(/</g, '&lt;')}</div>` : ''}</div>`;

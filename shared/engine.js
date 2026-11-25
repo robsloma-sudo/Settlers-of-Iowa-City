@@ -1,6 +1,9 @@
 // Settlers of Iowa City — rules engine (server-authoritative, no dependencies)
 
 export const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
+// what players see: the 'grain' resource is Iowa sweet corn
+export const RES_NAME = { brick: 'brick', lumber: 'lumber', wool: 'wool', grain: 'corn', ore: 'ore' };
+const rn = r => RES_NAME[r] || r;
 export const COST = {
   road: { brick: 1, lumber: 1 },
   settlement: { brick: 1, lumber: 1, wool: 1, grain: 1 },
@@ -69,7 +72,7 @@ const has = (r, c) => RES.every(k => (r[k] || 0) >= (c[k] || 0));
 function fail(m) { const e = new Error(m); e.rule = true; throw e; }
 function log(g, m, priv) { g.log.push(priv ? { m, priv } : { m }); if (g.log.length > 120) g.log.splice(0, g.log.length - 120); }
 const nm = (g, i) => g.players[i].name;
-function resText(r) { return RES.filter(k => r[k]).map(k => r[k] + ' ' + k).join(', ') || 'nothing'; }
+function resText(r) { return RES.filter(k => r[k]).map(k => r[k] + ' ' + rn(k)).join(', ') || 'nothing'; }
 function cleanRes(o) {
   const r = zero();
   if (o && typeof o === 'object') for (const k of RES) { const n = Math.floor(Number(o[k]) || 0); r[k] = n > 0 && n < 100 ? n : 0; }
@@ -243,7 +246,7 @@ function produce(g, n) {
     const want = takers.reduce((s, i) => s + gains[i][r], 0);
     if (want > g.bank[r]) {
       if (takers.length === 1) gains[takers[0]][r] = g.bank[r];
-      else { for (const i of takers) gains[i][r] = 0; log(g, `The bank is short on ${r} — nobody receives any.`); }
+      else { for (const i of takers) gains[i][r] = 0; log(g, `The bank is short on ${rn(r)} — nobody receives any.`); }
     }
   }
   let any = false;
@@ -260,7 +263,7 @@ function stealFrom(g, i, victim) {
   if (hand.length) {
     const r = hand[rnd(hand.length)]; vr[r]--; g.players[i].res[r]++;
     log(g, `${nm(g, i)} steals a card from ${nm(g, victim)}.`,
-      { [i]: `You stole 1 ${r} from ${nm(g, victim)}.`, [victim]: `${nm(g, i)} stole 1 ${r} from you.` });
+      { [i]: `You stole 1 ${rn(r)} from ${nm(g, victim)}.`, [victim]: `${nm(g, i)} stole 1 ${rn(r)} from you.` });
   }
   g.turn.victims = null; resume(g);
 }
@@ -437,7 +440,7 @@ export function applyAction(g, pid, a) {
         if (!RES.includes(a.res)) fail('Pick a resource.');
         let n = 0;
         g.players.forEach((p, k2) => { if (k2 !== i) { n += p.res[a.res]; me.res[a.res] += p.res[a.res]; p.res[a.res] = 0; } });
-        log(g, `${me.name} plays Monopoly on ${a.res} and collects ${n}.`);
+        log(g, `${me.name} plays Monopoly on ${rn(a.res)} and collects ${n}.`);
       } else if (a.card === 'road') {
         T.free = Math.min(2, LIMITS.road - count(g, i, 'road'));
         log(g, `${me.name} plays Road Building.`);
@@ -453,10 +456,10 @@ export function applyAction(g, pid, a) {
       if (T.phase !== 'main') fail('Trade after you roll.');
       if (!RES.includes(a.give) || !RES.includes(a.get) || a.give === a.get) fail('Pick two different resources.');
       const r = ratio(g, i, a.give);
-      if (me.res[a.give] < r) fail(`You need ${r} ${a.give} for that trade.`);
-      if (g.bank[a.get] < 1) fail('The bank is out of ' + a.get + '.');
+      if (me.res[a.give] < r) fail(`You need ${r} ${rn(a.give)} for that trade.`);
+      if (g.bank[a.get] < 1) fail('The bank is out of ' + rn(a.get) + '.');
       me.res[a.give] -= r; g.bank[a.give] += r; me.res[a.get]++; g.bank[a.get]--;
-      log(g, `${me.name} trades ${r} ${a.give} to the ${r === 4 ? 'bank' : 'harbor'} for 1 ${a.get}.`);
+      log(g, `${me.name} trades ${r} ${rn(a.give)} to the ${r === 4 ? 'bank' : 'harbor'} for 1 ${rn(a.get)}.`);
       break;
     }
     case 'tradeOffer': {
