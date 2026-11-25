@@ -74,7 +74,7 @@ function enter(code, token) {
 function leave() { session = null; S = null; store.set('session', null); clearTimeout(timer); history.replaceState(null, '', location.pathname); render(); }
 
 /* ---------------- home & lobby ---------------- */
-const LOGO = `<svg class="hexlogo" viewBox="0 0 100 100"><polygon points="50,4 90,27 90,73 50,96 10,73 10,27" fill="#ffcd00" stroke="#16181c" stroke-width="6"/><text x="50" y="67" font-size="46" text-anchor="middle">🌽</text></svg>`;
+const LOGO = `<svg class="hexlogo" viewBox="0 0 100 100"><defs><clipPath id="lgc"><polygon points="50,6 89,28 89,72 50,94 11,72 11,28"/></clipPath></defs><polygon points="50,2 93,26 93,74 50,98 7,74 7,26" fill="#ffcd00" stroke="#16181c" stroke-width="3"/><image href="/art/grain.jpg?v=2" x="5" y="5" width="90" height="90" clip-path="url(#lgc)" preserveAspectRatio="xMidYMid slice"/><polygon points="50,6 89,28 89,72 50,94 11,72 11,28" fill="none" stroke="#16181c" stroke-width="2"/><g transform="translate(50,57)"><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="#d8443c" stroke="#141414" stroke-width="2.5" stroke-linejoin="round"/><path d="M-17,14 V-2 L0,-17 L17,-2 V14 Z" fill="url(#lgg)"/><rect x="-5" y="3" width="10" height="11" rx="1.5" fill="#000" opacity=".35"/></g><defs><linearGradient id="lgg" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient></defs></svg>`;
 function homeHTML() {
   const name = store.get('name') || '';
   return `<div class="home">
@@ -87,7 +87,7 @@ function homeHTML() {
 }
 function lobbyHTML() {
   const host = S.you === S.host, seats = [];
-  S.players.forEach((p, i) => seats.push(`<div class="seat"><i class="dot" style="background:${p.color}"></i><b>${esc(p.name)}${i === S.you ? ' (you)' : ''}${i === S.host ? ' · host' : ''}</b>${host && i !== S.host ? `<button class="small ghost" data-a="send" data-j='{"type":"removeSeat","seat":${i}}'>Remove</button>` : ''}</div>`));
+  S.players.forEach((p, i) => seats.push(`<div class="seat"><i class="dot" style="background:${p.color}"></i><b>${esc(p.name)}${p.bot ? ' 🤖' : ''}${i === S.you ? ' (you)' : ''}${i === S.host ? ' · host' : ''}</b>${host && i !== S.host ? `<button class="small ghost" data-a="send" data-j='{"type":"removeSeat","seat":${i}}'>Remove</button>` : ''}</div>`));
   for (let i = S.players.length; i < 4; i++) seats.push(`<div class="seat empty">Open seat</div>`);
   return `<div class="home">
     <div class="brand"><h1>Settlers of <span>Iowa City</span></h1></div>
@@ -103,47 +103,84 @@ function lobbyHTML() {
 }
 
 /* ---------------- board ---------------- */
+const ART_V = 2;
+let ART = {};   // resource -> image url (AI art when available, else hand-made)
+const artURL = r => ART[r] || `/art/${r}.jpg?v=${ART_V}`;
+const hexPts = (r, cx = 0, cy = 0) => [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 180 * (60 * i - 30); return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
+const DEFS = () => `<defs>
+  <clipPath id="hc" clipPathUnits="userSpaceOnUse"><polygon points="${hexPts(U - 1.5)}"/></clipPath>
+  <pattern id="seaP" patternUnits="userSpaceOnUse" width="220" height="220"><image href="${artURL('sea')}" width="220" height="220" preserveAspectRatio="xMidYMid slice"/></pattern>
+  <radialGradient id="vig" r="0.62"><stop offset="0.62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.38"/></radialGradient>
+  <radialGradient id="seaVig" r="0.75"><stop offset="0.5" stop-color="#04233a" stop-opacity="0"/><stop offset="1" stop-color="#04233a" stop-opacity="0.55"/></radialGradient>
+  <radialGradient id="tok" cx="0.4" cy="0.35" r="0.75"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.7" stop-color="#f1e2bd"/><stop offset="1" stop-color="#d8c193"/></radialGradient>
+  <linearGradient id="sand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3e3b5"/><stop offset="1" stop-color="#d9bf85"/></linearGradient>
+  <linearGradient id="gloss" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>
+  <linearGradient id="roofL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <radialGradient id="pawn" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#7b7f88"/><stop offset="0.45" stop-color="#3a3d44"/><stop offset="1" stop-color="#121317"/></radialGradient>
+  <linearGradient id="plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a77a4a"/><stop offset="1" stop-color="#6e4a2a"/></linearGradient>
+  <filter id="ds" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="1.6" dy="2.4" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter>
+  <filter id="ds2" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="2.5" dy="3.5" stdDeviation="2.4" flood-color="#000" flood-opacity=".5"/></filter>
+</defs>`;
+function houseSVG(x, y, color, city) {
+  // drawn as a little 3-D wooden piece: front face, sunlit roof, darker side
+  if (!city) return `<g transform="translate(${x},${y})" filter="url(#ds)">
+    <path d="M-10,9 V-2 L0,-11 L10,-2 V9 Z" fill="${color}" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M-10,-2 L0,-11 L10,-2 L7,-2 L0,-8 L-7,-2 Z" fill="#000" opacity=".22"/>
+    <path d="M-10,9 V-2 L0,-11 L10,-2 V9 Z" fill="url(#gloss)"/>
+    <rect x="-3" y="2" width="6" height="7" rx="1" fill="#000" opacity=".35"/></g>`;
+  return `<g transform="translate(${x},${y})" filter="url(#ds)">
+    <path d="M-15,11 V-4 L-7.5,-13 L0,-4 V-1 H15 V11 Z" fill="${color}" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M-15,11 V-4 L-7.5,-13 L0,-4 V-1 H15 V11 Z" fill="url(#gloss)"/>
+    <path d="M0,-1 H15 V3 H0 Z" fill="#000" opacity=".22"/>
+    <rect x="-10" y="1" width="5" height="6" rx="1" fill="#000" opacity=".35"/><rect x="4" y="5" width="4" height="6" fill="#000" opacity=".3"/><rect x="10" y="5" width="3" height="3" fill="#000" opacity=".3"/></g>`;
+}
+function robberSVG(x, y) {
+  return `<g transform="translate(${x},${y})" filter="url(#ds2)">
+    <ellipse cx="0" cy="15" rx="11" ry="4" fill="#000" opacity=".35"/>
+    <path d="M-10,15 C-10,6 -7,3 -5,-1 C-8,-3 -8,-9 -4,-10 C-6,-13 -6,-21 0,-21 C6,-21 6,-13 4,-10 C8,-9 8,-3 5,-1 C7,3 10,6 10,15 Z" fill="url(#pawn)" stroke="#0b0c0e" stroke-width="1"/>
+    <ellipse cx="-2.5" cy="-16" rx="2" ry="3" fill="#fff" opacity=".28"/></g>`;
+}
 function boardSVG(mode) {
-  const g = GEO, o = [], L = S.legal || {};
+  const g = GEO, o = [DEFS()], L = S.legal || {};
   const P = v => [g.vertices[v].x * U, g.vertices[v].y * U];
-  // harbors
+  o.push(`<rect x="-330" y="-300" width="660" height="600" fill="url(#seaP)"/><rect x="-330" y="-300" width="660" height="600" fill="url(#seaVig)"/>`);
+  // surf + beach under the island
+  g.hexes.forEach(h => o.push(`<polygon points="${hexPts(U * 1.2, h.x * U, h.y * U)}" fill="#e9f6ff" opacity=".18"/>`));
+  g.hexes.forEach(h => o.push(`<polygon points="${hexPts(U * 1.1, h.x * U, h.y * U)}" fill="url(#sand)"/>`));
+  // harbors: wooden piers out to a token
   for (const p of S.ports) {
     const e = g.edges[p.edge], [ax, ay] = P(e.a), [bx, by] = P(e.b), mx = (ax + bx) / 2, my = (ay + by) / 2;
     const h = g.hexes.find(h => h.corners.includes(e.a) && h.corners.includes(e.b));
-    const nx = (mx - h.x * U) / (0.866 * U), ny = (my - h.y * U) / (0.866 * U), px = mx + nx * 40, py = my + ny * 40;
-    o.push(`<path d="M${ax},${ay} L${px},${py} L${bx},${by}" fill="none" stroke="#f6efdc" stroke-width="4" stroke-dasharray="2 5" stroke-linecap="round"/>`);
-    o.push(`<circle cx="${px}" cy="${py}" r="19" fill="#f6efdc" stroke="#16181c" stroke-width="2"/>`);
-    o.push(p.type === '3:1' ? `<text x="${px}" y="${py + 5}" font-size="14" font-weight="800" text-anchor="middle">3:1</text>`
-      : `<text x="${px}" y="${py - 1}" font-size="14" text-anchor="middle">${ICON[p.type]}</text><text x="${px}" y="${py + 13}" font-size="10" font-weight="800" text-anchor="middle">2:1</text>`);
-  }
-  // hexes
-  S.hexes.forEach((h, i) => {
-    const hx = g.hexes[i], cx = hx.x * U, cy = hx.y * U;
-    o.push(`<polygon points="${hx.corners.map(v => P(v).join(',')).join(' ')}" fill="${FILL[h.res]}" stroke="#f1e2b4" stroke-width="5" stroke-linejoin="round"/>`);
-    o.push(`<text x="${cx}" y="${cy - 24}" font-size="20" text-anchor="middle">${ICON[h.res]}</text>`);
-    if (h.num) {
-      const hot = h.num === 6 || h.num === 8, n = 6 - Math.abs(7 - h.num);
-      o.push(`<circle cx="${cx}" cy="${cy + 8}" r="18" fill="#fbf4dd" stroke="#16181c" stroke-width="1.5"/>`);
-      o.push(`<text x="${cx}" y="${cy + 12}" font-size="${hot ? 19 : 17}" font-weight="800" text-anchor="middle" fill="${hot ? '#c0392b' : '#16181c'}">${h.num}</text>`);
-      for (let k = 0; k < n; k++) o.push(`<circle cx="${cx + (k - (n - 1) / 2) * 4.6}" cy="${cy + 19}" r="1.6" fill="${hot ? '#c0392b' : '#16181c'}"/>`);
+    const nx = (mx - h.x * U) / (0.866 * U), ny = (my - h.y * U) / (0.866 * U), px = mx + nx * 37, py = my + ny * 37;
+    for (const [qx, qy] of [[ax, ay], [bx, by]]) {
+      const sx = qx + (px - qx) * 0.18, sy = qy + (py - qy) * 0.18;
+      o.push(`<line x1="${sx}" y1="${sy}" x2="${px}" y2="${py}" stroke="#3b2614" stroke-width="7" stroke-linecap="round"/><line x1="${sx}" y1="${sy}" x2="${px}" y2="${py}" stroke="url(#plank)" stroke-width="4.5" stroke-dasharray="5 1.5"/>`);
     }
-    if (S.robber === i) o.push(`<g transform="translate(${cx - 33},${cy + 8})"><ellipse cx="0" cy="8" rx="10" ry="13" fill="#23262b" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-10" r="8" fill="#23262b" stroke="#fff" stroke-width="2"/></g>`);
+    if (p.type === '3:1') o.push(`<g filter="url(#ds)"><circle cx="${px}" cy="${py}" r="18" fill="url(#tok)" stroke="#6b4a26" stroke-width="2"/><text x="${px}" y="${py + 1}" font-size="13" font-weight="800" text-anchor="middle" fill="#2b2112">3:1</text><text x="${px}" y="${py + 11}" font-size="9" font-weight="800" text-anchor="middle" fill="#6b5a3a">ANY</text></g>`);
+    else o.push(`<g filter="url(#ds)"><clipPath id="pc${p.edge}"><circle cx="${px}" cy="${py}" r="16"/></clipPath><circle cx="${px}" cy="${py}" r="18" fill="#f6ecd2" stroke="#6b4a26" stroke-width="2"/><image href="${artURL(p.type)}" x="${px - 18}" y="${py - 18}" width="36" height="36" clip-path="url(#pc${p.edge})" preserveAspectRatio="xMidYMid slice"/><rect x="${px - 13}" y="${py + 4}" width="26" height="12" rx="6" fill="#fbf3dc" stroke="#6b4a26" stroke-width="1"/><text x="${px}" y="${py + 13.5}" font-size="10" font-weight="800" text-anchor="middle" fill="#2b2112">2:1</text></g>`);
+  }
+  // terrain tiles
+  S.hexes.forEach((h, i) => {
+    const hx = g.hexes[i], cx = hx.x * U, cy = hx.y * U, rot = (i * 137) % 6 * 60;
+    o.push(`<g transform="translate(${cx},${cy})"><g clip-path="url(#hc)"><image href="${artURL(h.res)}" x="${-U * 1.06}" y="${-U * 1.06}" width="${U * 2.12}" height="${U * 2.12}" transform="rotate(${rot})" preserveAspectRatio="xMidYMid slice"/><polygon points="${hexPts(U)}" fill="url(#vig)"/></g><polygon points="${hexPts(U - 1.5)}" fill="none" stroke="#fff6d8" stroke-opacity=".55" stroke-width="2.5"/><polygon points="${hexPts(U + 0.5)}" fill="none" stroke="#5a4426" stroke-opacity=".55" stroke-width="1.2"/></g>`);
+    if (h.num) {
+      const hot = h.num === 6 || h.num === 8, n = 6 - Math.abs(7 - h.num), ink = hot ? '#b3261e' : '#231a0e';
+      o.push(`<g filter="url(#ds)"><circle cx="${cx}" cy="${cy}" r="17.5" fill="url(#tok)" stroke="#8a6a3a" stroke-width="1.4"/><circle cx="${cx}" cy="${cy}" r="14.5" fill="none" stroke="#8a6a3a" stroke-opacity=".35" stroke-width=".8"/></g>`);
+      o.push(`<text x="${cx}" y="${cy + 5}" font-family="Georgia,serif" font-size="${hot ? 19 : 17}" font-weight="700" text-anchor="middle" fill="${ink}">${h.num}</text>`);
+      for (let k = 0; k < n; k++) o.push(`<circle cx="${cx + (k - (n - 1) / 2) * 4.2}" cy="${cy + 11}" r="1.5" fill="${ink}"/>`);
+    }
   });
   // roads
   S.edges.forEach((ow, e) => {
     if (ow === null) return;
-    const [ax, ay] = P(g.edges[e].a), [bx, by] = P(g.edges[e].b), t = 0.17;
+    const [ax, ay] = P(g.edges[e].a), [bx, by] = P(g.edges[e].b), t = 0.16;
     const c = `x1="${ax + (bx - ax) * t}" y1="${ay + (by - ay) * t}" x2="${bx + (ax - bx) * t}" y2="${by + (ay - by) * t}" stroke-linecap="round"`;
-    o.push(`<line ${c} stroke="#16181c" stroke-width="11"/><line ${c} stroke="${S.players[ow].color}" stroke-width="7"/>`);
+    o.push(`<g filter="url(#ds)"><line ${c} stroke="#141414" stroke-width="10"/><line ${c} stroke="${S.players[ow].color}" stroke-width="7"/><line ${c} stroke="#fff" stroke-opacity=".35" stroke-width="2" transform="translate(-1,-1.2)"/></g>`);
   });
   // buildings
-  S.vertices.forEach((b, v) => {
-    if (!b) return;
-    const [x, y] = P(v), col = S.players[b.p].color;
-    o.push(b.city
-      ? `<path d="M${x - 13},${y + 10} v-15 l7,-8 l7,8 v3 h9 v12 z" fill="${col}" stroke="#16181c" stroke-width="2.2" stroke-linejoin="round"/>`
-      : `<path d="M${x - 9},${y + 8} v-10 l9,-8 l9,8 v10 z" fill="${col}" stroke="#16181c" stroke-width="2.2" stroke-linejoin="round"/>`);
-  });
+  S.vertices.forEach((b, v) => { if (b) { const [x, y] = P(v); o.push(houseSVG(x, y, S.players[b.p].color, b.city)); } });
+  // robber (sits to the left of the number)
+  { const cx = g.hexes[S.robber].x * U, cy = g.hexes[S.robber].y * U; o.push(robberSVG(cx - 30, cy + 2)); }
   // tap targets
   const pk = ui.pick;
   if (mode === 'settlement' || mode === 'city') for (const v of (mode === 'city' ? L.city : L.settle) || []) {
@@ -158,13 +195,15 @@ function boardSVG(mode) {
   if (mode === 'robber') S.hexes.forEach((h, i) => {
     if (i === S.robber) return;
     const cx = g.hexes[i].x * U, cy = g.hexes[i].y * U, on = pk && pk.k === 'h' && pk.id === i;
-    o.push(`<circle class="spot ${on ? 'picked' : ''}" cx="${cx}" cy="${cy + 8}" r="24" fill-opacity="${on ? 1 : .25}"/><circle class="hit" data-a="pick" data-k="h" data-id="${i}" cx="${cx}" cy="${cy}" r="42"/>`);
+    o.push(`<circle class="spot ${on ? 'picked' : ''}" cx="${cx}" cy="${cy}" r="24" fill-opacity="${on ? 1 : .25}"/><circle class="hit" data-a="pick" data-k="h" data-id="${i}" cx="${cx}" cy="${cy}" r="42"/>`);
   });
-  return `<svg class="board" viewBox="-338 -322 676 644" xmlns="http://www.w3.org/2000/svg">${o.join('')}</svg>`;
+  return `<svg class="board" viewBox="-320 -284 640 568" xmlns="http://www.w3.org/2000/svg">${o.join('')}</svg>`;
 }
 
 /* ---------------- game screen ---------------- */
 const mine = () => S.actor === S.you;
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+const dieHTML = (n, red) => `<div class="die ${red ? 'red' : ''}" aria-label="${n}">${[...Array(9).keys()].map(k => `<i class="${PIPS[n].includes(k) ? 'p' : ''}"></i>`).join('')}</div>`;
 function activeMode() {
   if (!mine()) return null;
   if (S.phase === 'setup') return S.setup.step;
@@ -205,13 +244,13 @@ const costIcons = c => RES.map(r => ICON[r].repeat(c[r] || 0)).join('');
 
 function gameHTML() {
   const me = S.players[S.you], T = S.turn, mode = activeMode(), [msg, sub] = statusText();
-  const chips = S.players.map((p, i) => `<div class="chip ${i === S.actor && S.phase !== 'over' ? 'on' : ''}" style="border-color:${p.color}">
-    <div class="n"><span>${esc(p.name)}${i === S.you ? ' (you)' : ''}</span><span class="vp">★ ${p.vp}</span></div>
-    <div class="st"><span title="Resource cards">🂠 ${p.cards}</span><span title="Development cards">🃏 ${p.devs}</span><span title="Knights played">⚔️ ${p.knights}</span><span title="Longest road">🛣️ ${p.road}</span>
-    ${S.longestRoad === i ? '<span class="badge">Longest Road</span>' : ''}${S.largestArmy === i ? '<span class="badge">Largest Army</span>' : ''}</div></div>`).join('');
+  const chips = S.players.map((p, i) => `<div class="chip ${i === S.actor && S.phase !== 'over' ? 'on' : ''} ${i === S.you ? 'me' : ''}" style="--c:${p.color}">
+    <div class="n"><i class="pc"></i><span class="nm">${esc(p.name)}${i === S.you && S.players.length < 3 ? ' (you)' : ''}${p.bot && S.players.length < 3 ? ' 🤖' : ''}</span><span class="vp">★${p.vp}</span></div>
+    <div class="st"><span title="Resource cards">🂠${p.cards}</span><span title="Development cards">🃏${p.devs}</span><span title="Knights played">⚔️${p.knights}</span><span title="Longest road">🛣️${p.road}</span></div>
+    ${S.longestRoad === i || S.largestArmy === i ? `<div class="bd">${S.longestRoad === i ? '<span class="badge">Longest Road</span>' : ''}${S.largestArmy === i ? '<span class="badge">Largest Army</span>' : ''}</div>` : ''}</div>`).join('');
   const d = T && T.dice, rolling = Date.now() - rollAnim < 700;
   const right = ui.pick ? `<div class="confirm"><button class="primary" data-a="confirm">✓ Confirm</button><button data-a="unpick">✕</button></div>`
-    : d ? `<div class="dice ${rolling ? 'roll' : ''}"><div class="die">${d[0]}</div><div class="die red">${d[1]}</div></div>` : '';
+    : d ? `<div class="dice ${rolling ? 'roll' : ''}">${dieHTML(d[0])}${dieHTML(d[1], true)}</div>` : '';
   const last = S.log.filter(l => l.chat == null).slice(-1)[0];
   const b = [], play = S.phase === 'play', myMain = play && mine() && T.phase === 'main';
   if (play && mine() && T.phase === 'roll') b.push(`<button class="primary" data-a="send" data-j='{"type":"roll"}'>🎲 Roll dice</button>`);
@@ -221,12 +260,12 @@ function gameHTML() {
   if (myMain && !ui.mode) b.push(`<button class="primary" data-a="send" data-j='{"type":"endTurn"}'>End turn</button>`);
   if (S.phase === 'over') b.push(`<button class="primary" data-a="open" data-m="over">Final scores</button>`);
   return `<div class="game">
-    <div class="top"><b>Settlers of Iowa City</b><span class="code">${S.code}</span><button data-a="open" data-m="log">💬 Log</button><button data-a="open" data-m="help">?</button></div>
-    <div class="players">${chips}</div>
+    <div class="top"><b><span class="lg">⬢</span> Settlers of Iowa City</b><span class="code">${S.code}</span><button data-a="open" data-m="log">💬 Log</button><button data-a="open" data-m="help">?</button></div>
+    <div class="players n${S.players.length}">${chips}</div>
     ${me.bot && me.wasHuman ? `<div class="banner"><span>The computer is playing your seat.</span><button class="small primary" data-a="send" data-j='{"type":"unbot"}'>Take back control</button></div>` : ''}
     <div class="status ${mine() && S.phase !== 'over' ? 'mine' : ''}"><div class="msg">${esc(msg)}<small>${esc(ui.pick || mine() ? sub : (last ? last.m : sub))}</small></div>${right}</div>
     <div class="boardwrap">${boardSVG(mode)}</div>
-    <div class="hand">${RES.map(r => `<div class="rc ${r} ${me.res[r] ? '' : 'zero'}">${ICON[r]} ${me.res[r]}<small>${r}</small></div>`).join('')}</div>
+    <div class="hand">${RES.map(r => `<div class="rc ${me.res[r] ? '' : 'zero'}" style="background-image:url('${artURL(r)}')"><b>${me.res[r]}</b><small>${r}</small></div>`).join('')}</div>
     <div class="actions">${b.join('')}</div>
   </div>`;
 }
@@ -363,6 +402,14 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => { if (e.target.id === 'chat') ui.chat = e.target.value; });
 document.addEventListener('keydown', e => { if (e.key === 'Enter') { if (e.target.id === 'chat') A.chat(); if (e.target.id === 'code') A.join(); } });
+
+// use the OpenAI artwork when it has been made (falls back to the hand-made art)
+fetch('/art-api/status', { cache: 'no-store' }).then(r => r.json()).then(j => {
+  const imgs = (j && j.images) || {};
+  for (const k in imgs) ART[k] = `/ai-art/${k}?v=${imgs[k]}`;
+  if (ART.table) document.body.style.backgroundImage = `radial-gradient(ellipse at 50% 20%, rgba(255,214,150,.10), rgba(0,0,0,.55) 75%), url(${ART.table})`;
+  if (Object.keys(imgs).length) render();
+}).catch(() => { });
 
 // start: resume a saved seat if the link matches (or no link was given)
 if (session && urlCode && urlCode !== session.code) { const t = store.get('seat.' + urlCode); session = t ? { code: urlCode, token: t } : null; }

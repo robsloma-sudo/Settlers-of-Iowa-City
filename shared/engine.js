@@ -93,7 +93,7 @@ export function addPlayer(g, name, bot) {
   if (g.phase !== 'lobby') fail('That game has already started.');
   if (g.players.length >= 4) fail('That game is full (4 players).');
   name = String(name || '').replace(/[<>]/g, '').trim().slice(0, 16) || 'Player';
-  if (bot) name = BOT_NAMES.find(n => !g.players.some(p => p.name === n + ' (bot)')) + ' (bot)';
+  if (bot) name = BOT_NAMES.find(n => !g.players.some(p => p.name === n));
   let base = name, n = 2;
   while (g.players.some(p => p.name.toLowerCase() === name.toLowerCase())) name = base + ' ' + n++;
   const p = { id: rid(8), token: rid(24), name, bot: !!bot, color: COLORS.find(c => !g.players.some(q => q.color === c)) };
