@@ -312,11 +312,10 @@ export function applyAction(g, pid, a) {
     if (a.type === 'settlement' && s.step === 'settlement') {
       if (!canSettle(g, a.v, i, true)) fail('You cannot build there.');
       g.vertices[a.v] = { p: i }; s.last = a.v; s.step = 'road';
-      if (s.i >= g.players.length) { // second settlement pays out its starting resources
-        const got = zero();
-        for (const h of V[a.v].hexes) { const r = g.hexes[h].res; if (r !== 'desert') { got[r]++; me.res[r]++; g.bank[r]--; } }
-        log(g, `${me.name} places a settlement and collects ${resText(got)}.`);
-      } else log(g, `${me.name} places a settlement.`);
+      // house rule: BOTH starting settlements pay one card for every land they touch
+      const got = zero();
+      for (const h of V[a.v].hexes) { const r = g.hexes[h].res; if (r !== 'desert' && g.bank[r] > 0) { got[r]++; me.res[r]++; g.bank[r]--; } }
+      log(g, `${me.name} places a settlement and collects ${resText(got)}.`);
       return;
     }
     if (a.type === 'road' && s.step === 'road') {
