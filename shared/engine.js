@@ -203,6 +203,12 @@ function ratio(g, i, res) {
   }
   return r;
 }
+// House rule: every new settlement plays the construction show with one of three photos
+function newHome(g, i) {
+  const last = g.home ? g.home.pic : -1;
+  let pic = rnd(3); if (pic === last) pic = (pic + 1 + rnd(2)) % 3;   // avoid the same photo twice in a row
+  g.home = { id: (g.home ? g.home.id : 0) + 1, player: i, pic };
+}
 // House rule: a road built and a development card bought in the same turn
 // sets off the "Kennedy Special" celebration on every screen (once per turn).
 function kennedy(g, i) {
@@ -314,7 +320,7 @@ export function applyAction(g, pid, a) {
     const s = g.setup;
     if (a.type === 'settlement' && s.step === 'settlement') {
       if (!canSettle(g, a.v, i, true)) fail('You cannot build there.');
-      g.vertices[a.v] = { p: i }; s.last = a.v; s.step = 'road';
+      g.vertices[a.v] = { p: i }; s.last = a.v; s.step = 'road'; newHome(g, i);
       // house rule: BOTH starting settlements pay one card for every land they touch
       const got = zero();
       for (const h of V[a.v].hexes) { const r = g.hexes[h].res; if (r !== 'desert' && g.bank[r] > 0) { got[r]++; me.res[r]++; g.bank[r]--; } }
@@ -401,7 +407,7 @@ export function applyAction(g, pid, a) {
       if (count(g, i, 'settlement') >= LIMITS.settlement) fail('You are out of settlement pieces — upgrade one to a city first.');
       if (!canSettle(g, a.v, i, false)) fail('You cannot build a settlement there.');
       if (!has(me.res, COST.settlement)) fail('You cannot afford a settlement.');
-      pay(g, i, COST.settlement); g.vertices[a.v] = { p: i };
+      pay(g, i, COST.settlement); g.vertices[a.v] = { p: i }; newHome(g, i);
       log(g, `${me.name} builds a settlement.`); updateLongestRoad(g); break;
     }
     case 'city': {
@@ -520,7 +526,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

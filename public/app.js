@@ -22,7 +22,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('sic.' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
-let lastSpecial = null, lastBoom = null, shows = [], showing = false;
+let lastSpecial = null, lastBoom = null, lastHome = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -44,9 +44,10 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  const bm = S.boom ? S.boom.id : 0;
-  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; }   // don't replay old ones when a page opens
+  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; }   // don't replay old ones when a page opens
   else {
+    if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
     if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
     if (sp > lastSpecial) { lastSpecial = sp; const n = S.players[S.special.player].name; queueShow(() => kennedySpecial(n)); }
   }
@@ -361,6 +362,21 @@ function nextShow() {
   const fn = shows.shift();
   if (!fn) { showing = false; return; }
   showing = true; fn(); setTimeout(nextShow, 5200);
+}
+function builtHome(name, pic) {
+  const old = document.getElementById('home'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'home';
+  const rand = (a, b) => (a + Math.random() * (b - a)).toFixed(1);
+  const dust = [...Array(34)].map(() => `<i class="d" style="left:${rand(-10, 100)}%;top:${rand(20, 105)}%;--s:${rand(18, 42)}vmax;--x:${rand(-14, 14)}vw;--y:${rand(-30, -6)}vh;animation-delay:${rand(0, 1.3)}s"></i>`).join('');
+  const bits = [...Array(18)].map(() => `<i class="b" style="left:${rand(5, 95)}%;--x:${rand(-40, 40)}vw;--r:${rand(-540, 540)}deg;animation-delay:${rand(0, 1.6)}s;background:${['#8b5a2b', '#b5835a', '#c8673b', '#6b4a2b', '#d8c39a'][Math.floor(Math.random() * 5)]}"></i>`).join('');
+  const tools = ['🔨', '🪚', '🧱', '🏗️', '🚧', '🪛', '🧱', '🔨'].map((t, k) => `<span class="t" style="left:${[6, 80, 12, 74, 40, 88, 2, 58][k]}%;top:${[12, 16, 70, 74, 6, 46, 42, 86][k]}%;animation-delay:${(0.15 + k * 0.12).toFixed(2)}s">${t}</span>`).join('');
+  el.innerHTML = `${dust}${bits}${tools}<div class="h-card"><img src="/img/home${pic + 1}.jpg?v=1" alt=""><div class="h-cap"><b>${esc(name)} built a home.</b><span>Oh my gosh, yay! 🏡</span></div></div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('build');
+  try { navigator.vibrate && navigator.vibrate([60, 40, 60, 40, 60, 40, 60]); } catch (e) { }
+  setTimeout(() => document.body.classList.remove('build'), 2600);
+  setTimeout(() => el.remove(), 5000);
 }
 function itsOn(name, other) {
   const old = document.getElementById('boom'); if (old) old.remove();
