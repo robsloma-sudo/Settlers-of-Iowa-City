@@ -317,6 +317,25 @@ export function applyAction(g, pid, a) {
     if (!t || t.bot || t.id === g.host || g.phase === 'lobby') fail('Cannot do that.');
     t.bot = true; t.wasHuman = true; log(g, `${t.name} is now played by the computer.`); return;
   }
+  // host menu: start over with the same players, or stop the game now
+  if (a.type === 'restart') {
+    if (pid !== g.host) fail('Only the host can restart the game.');
+    if (g.phase === 'lobby') fail('The game has not started yet.');
+    for (const p of g.players) { if (p.wasHuman) { p.bot = false; delete p.wasHuman; } delete p.res; delete p.dev; delete p.knights; }
+    g.phase = 'lobby'; g.turn = null; g.setup = null; g.trade = null; g.winner = null; g.ended = false; g.discards = {};
+    log(g, `🔁 ${me.name} restarted the game. Same players — waiting for the host to start.`);
+    return;
+  }
+  if (a.type === 'endGame') {
+    if (pid !== g.host) fail('Only the host can end the game.');
+    if (g.phase !== 'setup' && g.phase !== 'play') fail('There is no game running.');
+    g.phase = 'over'; g.ended = true; g.trade = null;
+    const scores = g.players.map((_, k) => vp(g, k, true)), best = Math.max(...scores);
+    const leaders = scores.map((v, k) => v === best ? k : -1).filter(k => k >= 0);
+    g.winner = leaders.length === 1 ? leaders[0] : null;
+    log(g, `🏁 ${me.name} ended the game. ${g.winner === null ? 'It finishes in a tie.' : nm(g, g.winner) + ' was in the lead with ' + best + ' points.'}`);
+    return;
+  }
   if (a.type === 'unbot') {
     if (!me.wasHuman || !me.bot) fail('Nothing to take back.');
     me.bot = false; log(g, `${me.name} is back in control.`); return;
@@ -545,7 +564,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

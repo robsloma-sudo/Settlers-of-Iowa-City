@@ -56,6 +56,7 @@ function setState(r) {
   }
   if (S.turn && S.turn.rollId && S.turn.rollId !== lastRoll) { if (lastRoll !== null) rollAnim = Date.now(); lastRoll = S.turn.rollId; }
   else if (lastRoll === null) lastRoll = (S.turn && S.turn.rollId) || 0;
+  if (S.phase === 'lobby') { ui.overSeen = false; ui.modal = null; }
   if (!(S.phase === 'play' && S.actor === S.you && S.turn.phase === 'main')) ui.mode = null;
   ui.pick = null;
   render();
@@ -230,7 +231,7 @@ function activeMode() {
   return null;
 }
 function statusText() {
-  if (S.phase === 'over') return [`🏆 ${S.players[S.winner].name} wins!`, 'Game over'];
+  if (S.phase === 'over') return S.winner === null ? ['🏁 Game ended', 'Ended by the host — it finished in a tie.'] : [S.ended ? `🏁 Game ended — ${S.players[S.winner].name} was leading` : `🏆 ${S.players[S.winner].name} wins!`, S.ended ? 'Ended by the host' : 'Game over'];
   const an = S.players[S.actor].name;
   if (S.phase === 'setup') {
     const round = S.setup.i < S.players.length ? 'first' : 'second';
@@ -276,7 +277,7 @@ function gameHTML() {
   if (myMain && !ui.mode) b.push(`<button class="primary" data-a="send" data-j='{"type":"endTurn"}'>End turn</button>`);
   if (S.phase === 'over') b.push(`<button class="primary" data-a="open" data-m="over">Final scores</button>`);
   return `<div class="game">
-    <div class="top"><b><span class="lg">⬢</span> Settlers of Iowa City</b><span class="code">${S.code}</span><button data-a="open" data-m="log">💬 Log</button><button data-a="open" data-m="help">?</button></div>
+    <div class="top"><b><span class="lg">⬢</span> Settlers of Iowa City</b><span class="code">${S.code}</span><button data-a="open" data-m="log">💬 Log</button><button data-a="open" data-m="menu" aria-label="Menu">☰ Menu</button></div>
     <div class="players n${S.players.length}">${chips}</div>
     ${me.bot && me.wasHuman ? `<div class="banner"><span>The computer is playing your seat.</span><button class="small primary" data-a="send" data-j='{"type":"unbot"}'>Take back control</button></div>` : ''}
     <div class="status ${mine() && S.phase !== 'over' ? 'mine' : ''}">${pill}<div class="msg">${esc(msg)}<small>${esc(ui.pick || mine() ? sub : (last ? last.m : sub))}</small></div>${right}</div>
@@ -306,7 +307,9 @@ function modalHTML() {
   const me = S.players[S.you], T = S.turn, L = S.legal || {};
   if (m === 'over') {
     const rows = S.players.map((p, i) => ({ p, i })).sort((a, b) => b.p.vp - a.p.vp).map(({ p, i }) => `<tr><td><i class="dot" style="display:inline-block;background:${p.color};vertical-align:-2px"></i> ${esc(p.name)}${i === S.winner ? ' 🏆' : ''}<div class="hint">${p.vpCards ? p.vpCards + ' hidden Victory Point card' + (p.vpCards > 1 ? 's' : '') + ' · ' : ''}${p.knights} knights · road of ${p.road}</div></td><td>${p.vp}</td></tr>`).join('');
-    return `<div class="sheet">${head('🏆 ' + esc(S.players[S.winner].name) + ' wins!', false)}<table class="score">${rows}</table><div class="row"><button data-a="seen">Look at the board</button><button class="primary" data-a="leave">New game</button></div></div>`;
+    const title = S.winner === null ? '🏁 Game ended — a tie' : S.ended ? '🏁 Game ended — ' + esc(S.players[S.winner].name) + ' led' : '🏆 ' + esc(S.players[S.winner].name) + ' wins!';
+    const again = S.you === S.host ? `<button class="primary" data-a="send" data-j='{"type":"restart"}'>Play again (same players)</button>` : `<button class="primary" data-a="leave">New game</button>`;
+    return `<div class="sheet">${head(title, false)}<table class="score">${rows}</table><div class="row"><button data-a="seen">Look at the board</button>${again}</div>${S.you === S.host ? '<div class="row"><button class="ghost" data-a="leave">Leave</button></div>' : ''}</div>`;
   }
   if (m === 'discard') {
     const need = S.discards[S.you], n = sum(ui.disc);
@@ -351,6 +354,17 @@ function modalHTML() {
   if (m === 'log') {
     const hostTools = S.you === S.host && S.phase !== 'over' ? S.players.map((p, i) => i === S.you || p.bot ? '' : `<button class="small ghost" style="margin:6px 6px 0 0" data-a="send" data-j='{"type":"botify","seat":${i}}'>Let the computer play for ${esc(p.name)}</button>`).join('') : '';
     return `<div class="sheet">${head('Game log & chat')}<div class="log" id="log">${S.log.map(l => l.chat != null ? `<div class="chat"><span style="color:${S.players[l.chat] ? '#16181c' : ''}">${esc(S.players[l.chat] ? S.players[l.chat].name : '?')}:</span> ${esc(l.m)}</div>` : `<div>${esc(l.m)}</div>`).join('')}</div><div class="row"><input id="chat" maxlength="140" placeholder="Say something…" value="${esc(ui.chat)}" style="flex:3"><button class="dark" data-a="chat">Send</button></div>${hostTools ? '<h3>Host</h3>' + hostTools : ''}<div class="row"><button class="ghost" data-a="share">Share invite link</button><button class="ghost" data-a="leave">Leave game</button></div></div>`;
+  }
+  if (m === 'menu') {
+    const host = S.you === S.host, running = S.phase === 'setup' || S.phase === 'play';
+    const item = (icon, t, sub, attrs, dis) => `<button class="opt" ${attrs} ${dis ? 'disabled' : ''}><span style="font-size:22px">${icon}</span><span class="t">${t}<small>${sub}</small></span></button>`;
+    return `<div class="sheet">${head('Menu')}
+      ${item('📖', 'How to play', 'Costs and house rules', 'data-a="open" data-m="help"')}
+      ${item('🔗', 'Share invite link', 'Code ' + S.code, 'data-a="share"')}
+      ${item('🔄', 'Refresh screen', 'Reload the latest version of the game — you keep your seat', 'data-a="reload"')}
+      ${item('🔁', 'Restart game', host ? 'New board, same players — everyone goes back to the waiting room' : 'Only the host can restart', 'data-a="restart"', !host)}
+      ${item('🏁', 'End game', host ? 'Stop now and show the final scores' : 'Only the host can end the game', 'data-a="endgame"', !host || !running)}
+      ${item('🚪', 'Leave game', 'Back to the start screen — rejoin any time with the code', 'data-a="leave"')}</div>`;
   }
   if (m === 'help') return `<div class="sheet help">${head('How to play')}
     <h3>Building costs</h3>
@@ -464,7 +478,10 @@ const A = {
     if (old) { try { await api('GET', `state?code=${code}&token=${old}`); return enter(code, old); } catch (e) { } }
     try { const r = await api('POST', 'join', { code, name }); store.set('seat.' + r.code, r.token); enter(r.code, r.token); } catch (e) { toast(e.message); }
   },
-  leave() { if (S && S.phase !== 'lobby' && S.phase !== 'over' && !confirm('Leave this game? You can come back with the same link.')) return; leave(); },
+  leave() { if (S && S.phase !== 'lobby' && S.phase !== 'over' && !confirm('Leave this game? You can come back with the same link or code.')) return; ui.modal = null; leave(); },
+  reload() { location.reload(); },
+  restart() { if (!confirm('Restart the game? The board resets and everyone goes back to the waiting room with the same players.')) return; ui.modal = null; ui.overSeen = false; act({ type: 'restart' }); },
+  endgame() { if (!confirm('End the game now for everyone and show the final scores?')) return; ui.modal = null; act({ type: 'endGame' }); },
   async share() {
     const url = location.origin + '/?g=' + S.code, text = `Join my game of Settlers of Iowa City — code ${S.code}`;
     try { if (navigator.share) await navigator.share({ title: 'Settlers of Iowa City', text, url }); else { await navigator.clipboard.writeText(url); toast('Invite link copied.'); } } catch (e) { }
