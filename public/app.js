@@ -21,6 +21,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('sic.' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
+let lastSpecial = null;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -41,6 +42,9 @@ function setState(r) {
   if (r.players) for (const p of r.players) if (p.color === '#2f6fd6') p.color = '#3d8bff';
   if (S && r.version < S.version) return;
   S = r;
+  const sp = S.special ? S.special.id : 0;
+  if (lastSpecial === null) lastSpecial = sp;               // don't replay old ones when a page opens
+  else if (sp > lastSpecial) { lastSpecial = sp; kennedySpecial(S.players[S.special.player].name); }
   if (S.turn && S.turn.rollId && S.turn.rollId !== lastRoll) { if (lastRoll !== null) rollAnim = Date.now(); lastRoll = S.turn.rollId; }
   else if (lastRoll === null) lastRoll = (S.turn && S.turn.rollId) || 0;
   if (!(S.phase === 'play' && S.actor === S.you && S.turn.phase === 'main')) ui.mode = null;
@@ -344,6 +348,18 @@ function modalHTML() {
     <h3>Rules to remember</h3><ul><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
     <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 fields give grain · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
+}
+
+/* ---------------- Kennedy Special (house rule show) ---------------- */
+function kennedySpecial(name) {
+  const old = document.getElementById('ks'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'ks';
+  el.innerHTML = `<div class="ks-swirl"></div><img class="ks-photo" src="/img/kennedy.jpg?v=1" alt=""><div class="ks-text"><b>Kennedy<br>Special</b><small>${esc(name)} built a road and bought a development card!</small></div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('quake');
+  try { navigator.vibrate && navigator.vibrate([120, 60, 120, 60, 250]); } catch (e) { }
+  setTimeout(() => { el.remove(); document.body.classList.remove('quake'); }, 5000);
 }
 
 /* ---------------- render & input ---------------- */

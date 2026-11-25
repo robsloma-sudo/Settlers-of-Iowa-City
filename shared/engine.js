@@ -200,6 +200,15 @@ function ratio(g, i, res) {
   }
   return r;
 }
+// House rule: a road built and a development card bought in the same turn
+// sets off the "Kennedy Special" celebration on every screen (once per turn).
+function kennedy(g, i) {
+  const T = g.turn;
+  if (!T.builtRoad || !T.boughtDev || T.kennedy) return;
+  T.kennedy = true;
+  g.special = { id: (g.special ? g.special.id : 0) + 1, player: i };
+  log(g, `🎉 Kennedy Special! ${nm(g, i)} built a road and bought a development card in the same turn.`);
+}
 const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; };
 function checkWin(g) {
   if (g.phase !== 'play') return;
@@ -368,6 +377,7 @@ export function applyAction(g, pid, a) {
       if (!canRoad(g, a.e, i)) fail('You cannot build a road there.');
       if (!free) { if (!has(me.res, COST.road)) fail('You cannot afford a road.'); pay(g, i, COST.road); }
       g.edges[a.e] = i; log(g, `${me.name} builds a road.`);
+      T.builtRoad = true; kennedy(g, i);
       updateLongestRoad(g);
       if (free) { T.free--; if (T.free <= 0 || !legalRoads(g, i).length) { T.free = 0; resume(g); } }
       break;
@@ -394,7 +404,9 @@ export function applyAction(g, pid, a) {
       if (!has(me.res, COST.dev)) fail('You cannot afford a development card.');
       pay(g, i, COST.dev);
       const t = g.devDeck.pop(); me.dev.push({ t, n: T.num });
+      T.boughtDev = true;
       log(g, `${me.name} buys a development card.`, { [i]: `You bought a development card: ${DEV_NAMES[t]}.` });
+      kennedy(g, i);
       break;
     }
     case 'playDev': {
@@ -494,7 +506,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
+    discards: g.discards, trade: g.trade, special: g.special || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {
