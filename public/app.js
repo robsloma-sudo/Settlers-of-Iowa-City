@@ -295,7 +295,7 @@ function modalHTML() {
   }
   if (m === 'discard') {
     const need = S.discards[S.you], n = sum(ui.disc);
-    return `<div class="sheet">${head('Discard ' + need + ' cards', false)}<div class="hint">A seven was rolled and you hold more than 7 cards.</div>${RES.filter(r => me.res[r]).map(r => stepper('disc', r, n < need ? me.res[r] : 0, 'you have ' + me.res[r])).join('')}<div class="row"><button class="primary" data-a="discard" ${n === need ? '' : 'disabled'}>Discard ${n}/${need}</button></div></div>`;
+    return `<div class="sheet">${head('Discard ' + need + ' cards', false)}<div class="hint">A seven was rolled and you hold 7 or more cards, so you give half (rounded up) back to the bank. You choose which ones.</div>${RES.filter(r => me.res[r]).map(r => stepper('disc', r, n < need ? me.res[r] : 0, 'you have ' + me.res[r])).join('')}<div class="row"><button class="primary" data-a="discard" ${n === need ? '' : 'disabled'}>Discard ${n}/${need}</button></div></div>`;
   }
   if (m === 'steal') return `<div class="sheet">${head('Steal a card from…', false)}${T.victims.map(i => `<button class="opt" data-a="send" data-j='{"type":"steal","from":${i}}'><i class="dot" style="background:${S.players[i].color}"></i><span class="t">${esc(S.players[i].name)}<small>${S.players[i].cards} cards</small></span></button>`).join('')}</div>`;
   if (m === 'offer') {
@@ -341,7 +341,7 @@ function modalHTML() {
     <h3>Building costs</h3>
     <div class="seat"><b>Road</b>${costIcons(COST.road)}</div><div class="seat" style="margin-top:6px"><b>Settlement · 1 point</b>${costIcons(COST.settlement)}</div><div class="seat" style="margin-top:6px"><b>City · 2 points</b>${costIcons(COST.city)}</div><div class="seat" style="margin-top:6px"><b>Development card</b>${costIcons(COST.dev)}</div>
     <h3>Your turn</h3><ul><li><b>Roll.</b> Every hex with that number pays its neighbors: 1 card per settlement, 2 per city.</li><li><b>Trade</b> with other players, the bank (4:1) or your harbors (3:1 or 2:1).</li><li><b>Build</b> roads, settlements, cities, or buy development cards.</li></ul>
-    <h3>Rules to remember</h3><ul><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone with more than 7 cards discards half. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
+    <h3>Rules to remember</h3><ul><li>Settlements must be at least two corners apart, and connect to your own road.</li><li><b>Rolling a 7:</b> anyone holding 7 or more cards gives half back to the bank (rounded up: 7→4, 8→4, 9→5), choosing which cards. The roller moves the robber and steals a card. The robber's hex produces nothing.</li><li><b>Longest Road</b> (5+ in a row) and <b>Largest Army</b> (3+ knights) are worth 2 points each, and can be taken away.</li><li>Pieces: 15 roads, 5 settlements, 4 cities each.</li><li>First to <b>10 points</b> on their own turn wins.</li></ul>
     <h3>Board</h3><p>🧱 hills give brick · 🌲 forest gives lumber · 🐑 pasture gives wool · 🌽 fields give grain · ⛰️ mountains give ore · 🌵 desert gives nothing. Dots under a number show how often it rolls.</p></div>`;
   return '';
 }

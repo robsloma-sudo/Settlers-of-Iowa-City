@@ -339,7 +339,8 @@ export function applyAction(g, pid, a) {
       log(g, `${me.name} rolls ${n} (${d[0]} + ${d[1]}).`);
       if (n === 7) {
         g.discards = {};
-        g.players.forEach((p, k) => { const t = total(p.res); if (t > 7) g.discards[k] = Math.floor(t / 2); });
+        // house rule: 7 or more cards → give back half, rounded up (7→4, 8→4, 9→5)
+        g.players.forEach((p, k) => { const t = total(p.res); if (t >= 7) g.discards[k] = Math.ceil(t / 2); });
         T.phase = Object.keys(g.discards).length ? 'discard' : 'robber';
         log(g, 'A seven! The robber strikes.');
       } else { produce(g, n); T.phase = 'main'; }
