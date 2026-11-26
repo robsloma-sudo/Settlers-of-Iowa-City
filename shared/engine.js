@@ -2,9 +2,10 @@
 
 export const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 // what players see: the 'grain' resource is Iowa sweet corn
-// 'brick' is pink elephants (counted: 1 pink elephant, 2 pink elephants)
-export const RES_NAME = { brick: 'pink elephants', lumber: 'lumber', wool: 'wool', grain: 'corn', ore: 'ore' };
-const rn = (r, n = 2) => r === 'brick' && n === 1 ? 'pink elephant' : (RES_NAME[r] || r);
+// house names: brick = pink elephants, lumber = JUUL pods, wool = cat mittens, grain = corn, ore = Montenegro
+export const RES_NAME = { brick: 'pink elephants', lumber: 'JUUL pods', wool: 'cat mittens', grain: 'corn', ore: 'Montenegro' };
+const ONE = { brick: 'pink elephant', lumber: 'JUUL pod', wool: 'cat mitten' };
+const rn = (r, n = 2) => (n === 1 && ONE[r]) || RES_NAME[r] || r;
 export const COST = {
   road: { brick: 1, lumber: 1 },
   settlement: { brick: 1, lumber: 1, wool: 1, grain: 1 },

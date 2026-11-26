@@ -79,47 +79,88 @@ def far_from_center(r, n, min_r=0.30, max_r=0.47, min_gap=0.12, pts=None):
     return [(x * N, y * N) for x, y in out]
 
 
-# ------------------------------------------------------------------ pasture
-def pasture():
-    r = rng(11)
+# ------------------------------------------------------------------ wool -> cat paw meadow with knitted cat mittens
+def _disc(h, alb, cx, cy, a, b, ang, top, colr, pw=0.7):
+    pad = int(max(a, b) + 3)
+    y0, y1, x0, x1 = max(0, int(cy) - pad), min(N, int(cy) + pad), max(0, int(cx) - pad), min(N, int(cx) + pad)
+    if y0 >= y1 or x0 >= x1:
+        return None
+    X, Y = xx[y0:y1, x0:x1] - cx, yy[y0:y1, x0:x1] - cy
+    u = X * np.cos(ang) + Y * np.sin(ang); v = -X * np.sin(ang) + Y * np.cos(ang)
+    e = (u / a) ** 2 + (v / b) ** 2
+    m = e < 1
+    hh = top * np.clip(1 - e, 0, 1) ** pw
+    up = m & (hh > h[y0:y1, x0:x1])
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    if colr is not None:
+        alb[y0:y1, x0:x1] = np.where(up[..., None], colr if np.ndim(colr) == 1 else colr[y0:y1, x0:x1], alb[y0:y1, x0:x1])
+    return (y0, y1, x0, x1, u, v, up)
+
+
+def _paw(h, alb, r, cx, cy, ang, k):
+    """a fluffy cat paw seen from below: furry paw with pink toe beans"""
+    ca, sa = np.cos(ang), np.sin(ang)
+    P = lambda du, dv: (cx + du * ca - dv * sa, cy + du * sa + dv * ca)
+    # furry paw + leg
+    for t in np.linspace(0, 1, 6):
+        _disc(h, alb, *P(-44 * k - t * 50 * k, 0), 30 * k, 30 * k, ang, (30 - 4 * t) * k, None)
+    _disc(h, alb, *P(0, 0), 46 * k, 52 * k, ang, 34 * k, None, 0.55)
+    for dv, du in ((-34, 26), (-12, 40), (12, 40), (34, 26)):                         # furry toes
+        _disc(h, alb, *P(du * k, dv * k), 17 * k, 15 * k, ang, 34 * k, None, 0.55)
+    # fur colour (tortie: black with ginger patches) over the paw and leg
+    for t in np.linspace(-0.3, 1, 11):
+        cxx, cyy = P(-t * 90 * k, 0)
+        y0, y1, x0, x1 = max(0, int(cyy - 50 * k)), min(N, int(cyy + 50 * k)), max(0, int(cxx - 50 * k)), min(N, int(cxx + 50 * k))
+        X, Y = xx[y0:y1, x0:x1] - cxx, yy[y0:y1, x0:x1] - cyy
+        m = ((X ** 2 + Y ** 2) < (62 * k) ** 2) & (h[y0:y1, x0:x1] > 7)
+        patch = np.clip(fbm_cache['tort'][y0:y1, x0:x1] * 1.6, 0, 1)
+        c = mix(col('201a1c'), col('b86b2e'), patch)
+        c = c * (0.85 + 0.3 * np.clip(fbm_cache['hair'][y0:y1, x0:x1] * 0.5 + 0.5, 0, 1))[..., None]
+        alb[y0:y1, x0:x1] = np.where(m[..., None], c, alb[y0:y1, x0:x1])
+        h[y0:y1, x0:x1] = np.where(m, h[y0:y1, x0:x1] + fbm_cache['hair'][y0:y1, x0:x1] * 0.8, h[y0:y1, x0:x1])
+    bean = col('f4a7b6')
+    _disc(h, alb, *P(-4 * k, 0), 24 * k, 29 * k, ang, 46 * k, bean, 0.5)            # main pad
+    for dv, du in ((-34, 28), (-12, 42), (12, 42), (34, 28)):                         # four big toe beans
+        _disc(h, alb, *P(du * k, dv * k), 11 * k, 10 * k, ang, 45 * k, bean, 0.5)
+
+
+def _mitten(h, alb, r, cx, cy, ang, k, c1, c2):
+    """a knitted mitten lying flat: cuff, hand and thumb with knit ribs and a stripe"""
+    ca, sa = np.cos(ang), np.sin(ang)
+    P = lambda du, dv: (cx + du * ca - dv * sa, cy + du * sa + dv * ca)
+    parts = [_disc(h, alb, *P(0, 0), 40 * k, 27 * k, ang, 14 * k, None, 0.5),
+             _disc(h, alb, *P(-2 * k, 30 * k), 16 * k, 9 * k, ang - 0.6, 12 * k, None, 0.5),
+             _disc(h, alb, *P(-44 * k, 0), 14 * k, 26 * k, ang, 13 * k, None, 0.6)]
+    for i, pr in enumerate(parts):
+        if pr is None:
+            continue
+        y0, y1, x0, x1, u, v, up = pr
+        knit = np.abs(np.sin(v / (3.2 * k) + np.abs(np.sin(u / (2.6 * k))) * 1.2))
+        base = c2 if i == 2 else (c2 if (-14 * k < u.mean() and False) else c1)
+        stripe = (np.abs(u + 14 * k) < 5 * k) & (i == 0)
+        c = np.where(stripe[..., None], c2, base) * (0.8 + 0.25 * knit)[..., None]
+        alb[y0:y1, x0:x1] = np.where(up[..., None], c, alb[y0:y1, x0:x1])
+        h[y0:y1, x0:x1] = np.where(up, h[y0:y1, x0:x1] + knit * 1.4, h[y0:y1, x0:x1])
+
+
+fbm_cache = {}
+
+
+def wool():
+    r = rng(12)
+    fbm_cache['tort'] = fbm(r, 14, 3)
+    fbm_cache['hair'] = fbm(r, 1.1, 2, aniso=(2.5, 0.5))
     h = fbm(r, 40, 4) * 2.0 + fbm(r, 1.2, 2) * 0.9
-    tone = fbm(r, 60, 3)
-    alb = mix(col('4f8a2c'), col('86b843'), tone * 0.35 + 0.5)
-    alb = mix(alb, col('3c6e22'), np.clip(fbm(r, 3, 2) * 0.4, 0, 1) * 0.6)
-    # wildflowers
-    for _ in range(260):
+    alb = mix(col('5c9a33'), col('94c44a'), fbm(r, 60, 3) * 0.35 + 0.5)               # soft meadow
+    for _ in range(220):                                                              # little flowers
         x, y = r.integers(0, N, 2)
-        c = col(['f5f1e2', 'f2d64b', 'd9d0f5'][r.integers(0, 3)])
         m = (xx - x) ** 2 + (yy - y) ** 2 < r.uniform(1.5, 3.5) ** 2
-        alb[m] = c; h[m] += 0.6
-    # sheep: woolly bodies as fields of bumps, dark heads
-    for (cx, cy) in far_from_center(r, 4, 0.30, 0.40, 0.26):
-        ang = r.uniform(0, 2 * np.pi)
-        ca, sa = np.cos(ang), np.sin(ang)
-        u = (xx - cx) * ca + (yy - cy) * sa
-        v = -(xx - cx) * sa + (yy - cy) * ca
-        a, b = 62, 42
-        body = (u / a) ** 2 + (v / b) ** 2
-        inside = body < 1
-        dome = np.sqrt(np.clip(1 - body, 0, 1)) * 26
-        wool = np.zeros_like(h)
-        for _ in range(240):
-            bu, bv = r.uniform(-a, a), r.uniform(-b, b)
-            if (bu / a) ** 2 + (bv / b) ** 2 > 0.95:
-                continue
-            rr = r.uniform(6, 11)
-            wool += np.exp(-((u - bu) ** 2 + (v - bv) ** 2) / (2 * rr * rr)) * 3.2
-        h = np.where(inside, np.maximum(h, dome + np.clip(wool, 0, 6)), h)
-        alb[inside] = mix(col('f4f1e6'), col('ddd5c2'), np.clip(fbm(r, 2, 1)[inside] * 0.3 + 0.3, 0, 1))
-        hb = ((u - a - 14) / 21) ** 2 + (v / 15) ** 2
-        head = hb < 1
-        h = np.where(head, np.maximum(h, np.sqrt(np.clip(1 - hb, 0, 1)) * 18), h)
-        alb[head] = col('2c2622')
-        for s in (-1, 1):
-            eb = ((u - a - 2) / 11) ** 2 + ((v - s * 17) / 6) ** 2
-            ear = eb < 1
-            h = np.where(ear, np.maximum(h, 12), h); alb[ear] = col('3a322c')
-    render('wool', alb, h, shadow_len=34, slope=0.75)
+        alb[m] = col(['f5f1e2', 'f7c6d9', 'd9d0f5'][r.integers(0, 3)]); h[m] += 0.6
+    _paw(h, alb, r, 0.3 * N, 0.3 * N, np.deg2rad(-35), 1.15)                         # cat paws reaching in
+    _paw(h, alb, r, 0.72 * N, 0.73 * N, np.deg2rad(150), 1.05)
+    _mitten(h, alb, r, 0.72 * N, 0.28 * N, np.deg2rad(115), 1.75, col('d8443c'), col('f4efe2'))   # knitted mittens
+    _mitten(h, alb, r, 0.27 * N, 0.73 * N, np.deg2rad(-60), 1.65, col('2f8f9a'), col('f2c94c'))
+    render('wool', alb, h, shadow_len=34, slope=0.75, ambient=0.5, strength=0.9)
 
 
 # ------------------------------------------------------------------ grain -> sweet corn field
@@ -260,86 +301,145 @@ def brick():
     render('brick', alb, h, shadow_len=40, slope=0.85, ambient=0.52, strength=0.8)
 
 
-# ------------------------------------------------------------------ lumber (forest)
-def lumber():
-    r = rng(44)
-    h = fbm(r, 30, 3) * 2
-    alb = mix(col('1f3517'), col('2e4a20'), fbm(r, 10, 2) * 0.3 + 0.5)
-    # log pile in a clearing (top-left area)
-    lx, ly, ang = 0.3 * N, 0.27 * N, np.deg2rad(-30)
-    clearing = ((xx - lx) ** 2 + (yy - ly) ** 2) < (105 + fbm(r, 6, 2) * 10) ** 2
-    alb[clearing] = mix(col('6b5a34'), col('8a7444'), fbm(r, 3, 2)[clearing] * 0.3 + 0.5)
+# ------------------------------------------------------------------ lumber -> JUUL pods scattered on a dark slate table
+POD_COLORS = ['2fbfa8', 'f28c28', 'e8475f', '8d6ad6', 'f2d33c', '3b8ee8', 'f2f2f2']
+
+
+def _pod(h, alb, cx, cy, ang, k, tip):
     ca, sa = np.cos(ang), np.sin(ang)
-    u = (xx - lx) * ca + (yy - ly) * sa
-    v = -(xx - lx) * sa + (yy - ly) * ca
-    logs = []
-    for i, off in enumerate([-39, -13, 13, 39, -26, 0, 26]):
-        z = 0 if i < 4 else 15
-        logs.append((off, z))
-    occupied = np.zeros_like(h, bool)
-    for off, z in logs:
-        rad = 13.5
-        d = (v - off) / rad
-        m = (np.abs(d) < 1) & (np.abs(u) < 74)
-        cyl = np.sqrt(np.clip(1 - d * d, 0, 1)) * rad + z + 4
-        upd = m & (cyl > h)
-        h = np.where(upd, cyl, h)
-        bark = mix(col('4a3220'), col('8a6440'), np.clip(np.sin(v * 1.3 + fbm(r, 1.2, 1) * 2) * 0.3 + 0.5, 0, 1))
-        alb = np.where(upd[..., None], bark, alb)
-        end = m & (np.abs(u) > 69)
-        ring = 0.5 + 0.5 * np.sin(np.abs(v - off) * 1.4)
-        alb = np.where((end & upd)[..., None], mix(col('c79a62'), col('e5c18c'), ring), alb)
-        occupied |= m
-    # tree crowns, big to small, avoid the centre token and the log pile
-    for i in range(95):
-        x, y = r.uniform(0, N, 2)
-        if np.hypot(x - lx, y - ly) < 110:
-            continue
-        if np.hypot(x - N / 2, y - N / 2) < 0.2 * N and r.random() < 0.6:
-            continue
-        rad = r.uniform(42, 70) * (1 - i / 220)
-        conifer = r.random() < 0.4
-        sl = (slice(max(0, int(y - rad - 2)), int(y + rad + 2)), slice(max(0, int(x - rad - 2)), int(x + rad + 2)))
-        dx, dy = xx[sl] - x, yy[sl] - y
-        d = np.hypot(dx, dy) / rad
-        if conifer:
-            a = np.arctan2(dy, dx)
-            d = d / (0.82 + 0.18 * np.cos(a * 7))
-        m = d < 1
-        top = 26 + r.uniform(0, 14)
-        dome = np.sqrt(np.clip(1 - d * d, 0, 1)) * rad * 0.7 + top
-        leaf = fbm(r, 1.6, 2)[sl] * (2.6 if not conifer else 1.6)
-        hh = dome + leaf
-        upd = m & (hh > h[sl])
-        h[sl] = np.where(upd, hh, h[sl])
-        base = col(['2f6b2a', '3f7d2e', '557f2c', '2b5a2a', '6b8b35'][r.integers(0, 5)]) if not conifer else col(['1e4a2a', '24533a', '2a5a2e'][r.integers(0, 3)])
-        c = mix(base * 0.8, np.minimum(base * 1.3, 1), np.clip(leaf * 0.25 + 0.5, 0, 1))
-        alb[sl] = np.where(upd[..., None], c, alb[sl])
-    render('lumber', alb, h, shadow_len=34, slope=0.95, ambient=0.5, strength=0.7)
+    L, W = 26 * k, 10 * k
+    pad = int(L + 4)
+    y0, y1, x0, x1 = max(0, int(cy) - pad), min(N, int(cy) + pad), max(0, int(cx) - pad), min(N, int(cx) + pad)
+    if y0 >= y1 or x0 >= x1:
+        return
+    X, Y = xx[y0:y1, x0:x1] - cx, yy[y0:y1, x0:x1] - cy
+    u = X * ca + Y * sa; v = -X * sa + Y * ca
+    rr = 3 * k
+    q = np.hypot(np.maximum(np.abs(u) - (L - rr), 0), np.maximum(np.abs(v) - (W - rr), 0))
+    m = q < rr
+    edge = np.minimum(L - np.abs(u), W - np.abs(v))
+    hh = 6 + np.clip(edge / (3 * k), 0, 1) * 6 * k
+    up = m & (hh > h[y0:y1, x0:x1])
+    capm = u > L * 0.18                                    # coloured mouthpiece end
+    body = mix(col('c9d3d6'), col('f4f8f8'), np.clip(1 - np.abs(v) / W, 0, 1))      # clear plastic
+    liquid = (u < L * 0.05) & (u > -L * 0.8) & (np.abs(v) < W * 0.55)
+    c = np.where(capm[..., None], tip * (0.8 + 0.3 * np.clip(1 - np.abs(v) / W, 0, 1))[..., None],
+                 np.where(liquid[..., None], mix(col('d9b36a'), col('f2dca0'), 0.5), body))
+    slot = capm & (np.abs(v) < W * 0.18) & (u > L * 0.55)                           # mouthpiece slot
+    c = np.where(slot[..., None], tip * 0.45, c)
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    alb[y0:y1, x0:x1] = np.where(up[..., None], c, alb[y0:y1, x0:x1])
 
 
-# ------------------------------------------------------------------ ore (mountains)
+def lumber():
+    r = rng(45)
+    h = fbm(r, 40, 3) * 1.2 + fbm(r, 1.5, 2) * 0.35
+    alb = mix(col('2b2142'), col('47386e'), fbm(r, 30, 3) * 0.3 + 0.5)               # deep purple lounge table
+    alb = mix(alb, col('5a4a86'), np.clip(fbm(r, 2, 2) * 0.2, 0, 1) * 0.5)
+    # an open four-pack box (top-left)
+    bx, by, ang = 0.29 * N, 0.29 * N, np.deg2rad(-20)
+    ca, sa = np.cos(ang), np.sin(ang)
+    u = (xx - bx) * ca + (yy - by) * sa; v = -(xx - bx) * sa + (yy - by) * ca
+    box = (np.abs(u) < 74) & (np.abs(v) < 56)
+    wall = box & ((np.abs(u) > 66) | (np.abs(v) > 48))
+    h = np.where(box, np.where(wall, 22.0, 4.0), h)
+    alb = np.where(wall[..., None], col('e9ecee'), np.where(box[..., None], col('1d2124'), alb))
+    for k2, dv in enumerate((-33, -11, 11, 33)):
+        _pod(h, alb, bx + 0 * ca - dv * sa, by + 0 * sa + dv * ca, ang, 2.2, col(POD_COLORS[k2]))
+    # loose pods everywhere else (kept off the centre token)
+    pts = far_from_center(r, 15, 0.26, 0.47, 0.085, pts=[(0.29, 0.29)])
+    for i, (x, y) in enumerate(pts):
+        if np.hypot(x - bx, y - by) < 120:
+            continue
+        _pod(h, alb, x, y, r.uniform(0, np.pi), r.uniform(1.5, 1.9), col(POD_COLORS[r.integers(0, len(POD_COLORS))]))
+    # a slim grey device lying on the table (no branding)
+    dx, dy, da = 0.72 * N, 0.74 * N, np.deg2rad(35)
+    uu = (xx - dx) * np.cos(da) + (yy - dy) * np.sin(da); vv = -(xx - dx) * np.sin(da) + (yy - dy) * np.cos(da)
+    dev = np.hypot(np.maximum(np.abs(uu) - 82, 0), np.maximum(np.abs(vv) - 10, 0)) < 7
+    h = np.where(dev, 14 + np.clip(17 - np.abs(vv), 0, 17) * 0.4, h)
+    alb = np.where(dev[..., None], mix(col('6f777c'), col('b9c1c5'), np.clip(1 - np.abs(vv) / 17, 0, 1)), alb)
+    led = (np.abs(uu - 30) < 4) & (np.abs(vv) < 3)
+    alb = np.where(led[..., None], col('8ee6ff'), alb)
+    _pod(h, alb, dx + 92 * np.cos(da), dy + 92 * np.sin(da), da, 1.55, col('2fbfa8'))
+    render('lumber', alb, h, shadow_len=22, slope=0.7, ambient=0.5, strength=0.9)
+
+
+# ------------------------------------------------------------------ ore -> Montenegro: stone cellar with amber liqueur bottles
+def _capsule(h, alb, ax, ay, bx, by, rad, top, colr, cap=None):
+    pad = int(rad + 3)
+    x0, x1 = max(0, int(min(ax, bx)) - pad), min(N, int(max(ax, bx)) + pad)
+    y0, y1 = max(0, int(min(ay, by)) - pad), min(N, int(max(ay, by)) + pad)
+    X, Y = xx[y0:y1, x0:x1], yy[y0:y1, x0:x1]
+    dx, dy = bx - ax, by - ay
+    t = np.clip(((X - ax) * dx + (Y - ay) * dy) / (dx * dx + dy * dy), 0, 1)
+    d = np.hypot(X - (ax + t * dx), Y - (ay + t * dy)) / rad
+    m = d < 1
+    hh = top + rad * 0.8 * np.sqrt(np.clip(1 - d * d, 0, 1))
+    up = m & (hh > h[y0:y1, x0:x1])
+    c = colr(t, d) if callable(colr) else colr
+    h[y0:y1, x0:x1] = np.where(up, hh, h[y0:y1, x0:x1])
+    alb[y0:y1, x0:x1] = np.where(up[..., None], c, alb[y0:y1, x0:x1])
+
+
+def _amber(t, d):
+    glow = np.clip(1 - d, 0, 1)
+    c = mix(col('5a2a0c'), col('d77a1f'), glow * 0.9)
+    return np.where(((d < 0.25) & (glow > 0))[..., None], np.minimum(c * 1.6, 1), c)   # glassy highlight
+
+
 def ore():
-    r = rng(55)
-    ridged = np.zeros((N, N), np.float32)
-    amp = 1.0
-    for s in (70, 34, 16, 8, 3.5, 1.6):
-        g = gaussian_filter(r.standard_normal((N, N)).astype(np.float32), s, mode='wrap')
-        g /= g.std()
-        ridged += amp * (1 - np.abs(g))
-        amp *= 0.5
-    h = ridged * 22
-    dist = np.hypot(xx - N / 2, yy - N / 2) / (N / 2)
-    h -= np.clip(0.42 - dist, 0, 1) * 25   # a flatter saddle for the number token
-    hn = (h - h.min()) / (h.max() - h.min())
-    alb = mix(col('5d6066'), col('9a9ea6'), hn * 1.2)
-    alb = mix(alb, col('e9ecef'), np.clip((hn - 0.82) * 6, 0, 1))          # snowy tops
-    alb = mix(alb, col('5d6b3e'), np.clip((0.3 - hn) * 4, 0, 1) * 0.6)     # scrub in valleys
-    veins = np.clip(np.abs(fbm(r, 6, 3)) < 0.04, 0, 1).astype(np.float32)
-    alb = mix(alb, col('4a5a78'), veins * 0.45)                              # dark ore seams
-    glint = r.random((N, N)) > 0.9985
-    alb[gaussian_filter(glint.astype(np.float32), 0.8) > 0.05] = col('d8dde6')
-    render('ore', alb, h, shadow_len=30, slope=1.1, ambient=0.5, strength=1.2)
+    r = rng(56)
+    # grey flagstone cellar floor (keeps the "stone" look of the old mountains)
+    pts = r.uniform(0, N, (46, 2))
+    d = np.stack([np.minimum.reduce([np.hypot(((xx - px + dxw) % N) - 0, yy - py) for dxw in (0,)]) for px, py in pts])
+    d = np.stack([np.hypot(np.minimum(np.abs(xx - px), N - np.abs(xx - px)), np.minimum(np.abs(yy - py), N - np.abs(yy - py))) for px, py in pts])
+    ds = np.sort(d, axis=0)
+    edge = ds[1] - ds[0]
+    idx = np.argmin(d, axis=0)
+    tone = (np.sin(idx * 12.9898) * 43758.5453) % 1
+    h = np.clip(edge / 6, 0, 1) * 4 + fbm(r, 3, 2) * 0.6
+    alb = mix(col('6d6a66'), col('a6a29a'), tone * 0.7 + fbm(r, 6, 2) * 0.1)
+    alb = mix(alb, col('8a7d6a'), np.clip(fbm(r, 30, 3) * 0.4, 0, 1) * 0.4)
+    alb = np.where((edge < 3)[..., None], col('3f3b37'), alb)
+    # wooden crate of bottles (top-left)
+    cx, cy, ang, S = 0.3 * N, 0.29 * N, np.deg2rad(-12), 150
+    ca, sa = np.cos(ang), np.sin(ang)
+    u = (xx - cx) * ca + (yy - cy) * sa; v = -(xx - cx) * sa + (yy - cy) * ca
+    inside = (np.abs(u) < S / 2) & (np.abs(v) < S / 2)
+    wall = inside & ((np.abs(u) > S / 2 - 11) | (np.abs(v) > S / 2 - 11))
+    wood = mix(col('6b4423'), col('a8743f'), np.clip(np.sin(u * 0.35 + fbm(r, 2, 1) * 2) * 0.3 + 0.5, 0, 1))
+    h = np.where(inside, np.where(wall, 34.0, 8.0), h)
+    alb = np.where(wall[..., None], wood, np.where(inside[..., None], col('2c1d12'), alb))
+    for i in (-1, 0, 1):
+        for j in (-1, 0, 1):
+            bx, by = cx + (i * 44) * ca - (j * 44) * sa, cy + (i * 44) * sa + (j * 44) * ca
+            _disc(h, alb, bx, by, 20, 20, 0, 48, None, 0.45)
+            y0, y1, x0, x1 = int(by - 21), int(by + 21), int(bx - 21), int(bx + 21)
+            dd = np.hypot(xx[y0:y1, x0:x1] - bx, yy[y0:y1, x0:x1] - by) / 20
+            alb[y0:y1, x0:x1] = np.where((dd < 1)[..., None], _amber(None, dd), alb[y0:y1, x0:x1])
+            _disc(h, alb, bx, by, 9, 9, 0, 60, col('6e3410'), 0.5)          # neck
+            _disc(h, alb, bx, by, 7, 7, 0, 64, col('c9a227'), 0.3)          # gold cap
+    # two bottles lying on the floor
+    for (ax, ay, bx, by) in [(0.14 * N, 0.72 * N, 0.36 * N, 0.82 * N), (0.62 * N, 0.86 * N, 0.82 * N, 0.68 * N)]:
+        _capsule(h, alb, ax, ay, ax + (bx - ax) * 0.72, ay + (by - ay) * 0.72, 20, 4, _amber)
+        _capsule(h, alb, ax + (bx - ax) * 0.72, ay + (by - ay) * 0.72, bx, by, 8, 6, col('7a3a12'))
+        _capsule(h, alb, bx - (bx - ax) * 0.04, by - (by - ay) * 0.04, bx + (bx - ax) * 0.03, by + (by - ay) * 0.03, 8.5, 8, col('c9a227'))
+        mx, my = ax + (bx - ax) * 0.35, ay + (by - ay) * 0.35
+        _capsule(h, alb, mx - (bx - ax) * 0.08, my - (by - ay) * 0.08, mx + (bx - ax) * 0.08, my + (by - ay) * 0.08, 20.5, 4.5, col('efe4c6'))   # plain cream label
+    # a tumbler with amber liqueur and ice (top-right)
+    tx, ty = 0.74 * N, 0.3 * N
+    dd = np.hypot(xx - tx, yy - ty)
+    rim = (dd < 50) & (dd > 42)
+    liquid = dd <= 42
+    h = np.where(rim, 30.0, np.where(liquid, 22.0, h))
+    alb = np.where(rim[..., None], col('dfe6ea'), alb)
+    alb = np.where(liquid[..., None], mix(col('7a3a10'), col('e08a2a'), np.clip(1 - dd / 42, 0, 1)), alb)
+    for (ix, iy, a2) in [(-12, -9, 0.3), (13, 10, -0.5)]:
+        uu = (xx - tx - ix) * np.cos(a2) + (yy - ty - iy) * np.sin(a2); vv = -(xx - tx - ix) * np.sin(a2) + (yy - ty - iy) * np.cos(a2)
+        cube = (np.abs(uu) < 14) & (np.abs(vv) < 14) & liquid
+        h = np.where(cube, 27.0 + (14 - np.maximum(np.abs(uu), np.abs(vv))) * 0.2, h)
+        alb = np.where(cube[..., None], col('f4f1ea') * 0.95, alb)
+    render('ore', alb, h, shadow_len=34, slope=0.9, ambient=0.5, strength=0.8)
 
 
 # ------------------------------------------------------------------ desert
@@ -391,5 +491,5 @@ def table():
 
 
 if __name__ == '__main__':
-    for f in (pasture, grain, brick, lumber, ore, desert, sea, table):
+    for f in (wool, grain, brick, lumber, ore, desert, sea, table):
         f()
