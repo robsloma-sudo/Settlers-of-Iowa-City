@@ -1,4 +1,17 @@
 'use strict';
+// Must match APP_VERSION in shared/engine.js. When the server is newer, the page reloads itself (the seat is kept).
+const APP_V = 20;
+// Always play on the main address: old deploy links (xxxx--settlers-of-iowa-city.netlify.app) run frozen old versions.
+(function () {
+  const MAIN = 'settlers-of-iowa-city.netlify.app';
+  if (location.hostname.endsWith('--' + MAIN)) {
+    let seat = '';
+    try { const s = JSON.parse(localStorage.getItem('sic.session')); if (s) seat = '#seat=' + s.code + '.' + s.token; } catch (e) { }
+    location.replace('https://' + MAIN + location.pathname + location.search + seat);
+  }
+  const m = location.hash.match(/^#seat=([A-Z0-9]+)\.([a-z0-9]+)$/);
+  if (m) { try { localStorage.setItem('sic.session', JSON.stringify({ code: m[1], token: m[2] })); localStorage.setItem('sic.seat.' + m[1], JSON.stringify(m[2])); } catch (e) { } history.replaceState(null, '', location.pathname + location.search); }
+})();
 const $ = s => document.querySelector(s);
 const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 const NAME = { brick: 'pink elephants', lumber: 'JUUL pods', wool: 'cat mittens', grain: 'corn', ore: 'Montenegro' };
@@ -41,6 +54,7 @@ function toast(m) {
   setTimeout(() => d.remove(), 3200);
 }
 function setState(r) {
+  if (r.app && r.app > APP_V) { if (!sessionStorage.getItem('reloaded' + r.app)) { sessionStorage.setItem('reloaded' + r.app, '1'); location.reload(); return; } }
   if (r.geo) GEO = r.geo;
   if (r.now) clockOffset = r.now - Date.now();
   if (r.players) for (const p of r.players) if (p.color === '#2f6fd6') p.color = '#3d8bff';
@@ -366,7 +380,9 @@ function modalHTML() {
       ${item('🔄', 'Refresh screen', 'Reload the latest version of the game — you keep your seat', 'data-a="reload"')}
       ${item('🔁', 'Restart game', host ? 'New board, same players — everyone goes back to the waiting room' : 'Only the host can restart', 'data-a="restart"', !host)}
       ${item('🏁', 'End game', host ? 'Stop now and show the final scores' : 'Only the host can end the game', 'data-a="endgame"', !host || !running)}
-      ${item('🚪', 'Leave game', 'Back to the start screen — rejoin any time with the code', 'data-a="leave"')}</div>`;
+      ${item('🎬', 'Test the shows', 'Plays every animation on this phone only — nobody else sees it', 'data-a="testshows"')}
+      ${item('🚪', 'Leave game', 'Back to the start screen — rejoin any time with the code', 'data-a="leave"')}
+      <div class="hint" style="text-align:center;margin-top:10px">Version ${APP_V}</div></div>`;
   }
   if (m === 'help') return `<div class="sheet help">${head('How to play')}
     <h3>Building costs</h3>
@@ -546,6 +562,12 @@ const A = {
   },
   leave() { if (S && S.phase !== 'lobby' && S.phase !== 'over' && !confirm('Leave this game? You can come back with the same link or code.')) return; ui.modal = null; leave(); },
   reload() { location.reload(); },
+  testshows() {
+    ui.modal = null; render();
+    const me = S.players[S.you].name, other = (S.players.find((p, i) => i !== S.you) || S.players[S.you]).name;
+    queueShow(() => kennedySpecial(me)); queueShow(() => itsOn(me, other)); queueShow(() => builtHome(me, 0));
+    queueShow(() => catPeek(), 4300); queueShow(() => dealShow(0, 1, me, other), 3700); queueShow(() => loveShow([0, 1, 2, 3], 9000), 9300);
+  },
   restart() { if (!confirm('Restart the game? The board resets and everyone goes back to the waiting room with the same players.')) return; ui.modal = null; ui.overSeen = false; act({ type: 'restart' }); },
   endgame() { if (!confirm('End the game now for everyone and show the final scores?')) return; ui.modal = null; act({ type: 'endGame' }); },
   async share() {

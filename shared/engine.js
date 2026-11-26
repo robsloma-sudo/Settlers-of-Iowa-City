@@ -1,5 +1,7 @@
 // Settlers of Iowa City — rules engine (server-authoritative, no dependencies)
 
+// Bump APP_VERSION (here AND in public/app.js) with every release: phones running an older copy reload themselves.
+export const APP_VERSION = 20;
 export const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 // what players see: the 'grain' resource is Iowa sweet corn
 // house names: brick = pink elephants, lumber = JUUL pods, wool = cat mittens, grain = corn, ore = Montenegro
@@ -572,7 +574,7 @@ export function view(g, pid) {
   const me = idxOf(g, pid);
   const started = g.phase !== 'lobby';
   const out = {
-    code: g.code, version: g.version, now: Date.now(), phase: g.phase, you: me, host: g.players.findIndex(p => p.id === g.host),
+    code: g.code, version: g.version, app: APP_VERSION, now: Date.now(), phase: g.phase, you: me, host: g.players.findIndex(p => p.id === g.host),
     players: g.players.map((p, i) => {
       const o = { name: p.name, color: p.color, bot: p.bot, wasHuman: !!p.wasHuman };
       if (started) {
