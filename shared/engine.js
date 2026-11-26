@@ -240,6 +240,7 @@ function itsOn(g, i, e) {
 export const TURN_SECONDS = 30;
 export const INTRO_MS = 11500;
 export const LOVE_PHOTOS = 11;
+export const DEAL_PHOTOS = 7, DEAL_MS = 3600;
 // House rule: every 1–3 minutes a romantic slideshow of 4 random photos plays on every screen (10–15 s).
 // The turn clock pauses and computer players wait while it plays.
 export function checkRomance(g, now = Date.now()) {
@@ -549,7 +550,12 @@ export function applyAction(g, pid, a) {
       if (!has(me.res, tr.give) || !has(o.res, tr.want)) { g.trade = null; fail('Someone no longer has the cards. Offer cancelled.'); }
       for (const r of RES) { me.res[r] += tr.want[r] - tr.give[r]; o.res[r] += tr.give[r] - tr.want[r]; }
       log(g, `${me.name} trades ${resText(tr.give)} to ${o.name} for ${resText(tr.want)}.`);
-      g.trade = null; break;
+      g.trade = null;
+      // house rule: every confirmed player trade sets off the "deal" burst (one of 7 photos + a team phrase)
+      { const last = g.deal ? g.deal.pic : -1; let pic = rnd(DEAL_PHOTOS); if (pic === last) pic = (pic + 1) % DEAL_PHOTOS;
+        g.deal = { id: (g.deal ? g.deal.id : 0) + 1, pic, line: rnd(1000), a: i, b: a.with };
+        if (T.deadline) T.deadline += DEAL_MS; }
+      break;
     }
     case 'endTurn': {
       if (T.phase !== 'main') fail(T.phase === 'roll' ? 'Roll the dice first.' : 'Finish your current step first.');
@@ -586,7 +592,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, intro: g.intro || null, love: g.love || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, intro: g.intro || null, love: g.love || null, deal: g.deal || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

@@ -24,7 +24,7 @@ const store = {
 };
 
 let clockOffset = 0, peekedAt = {};
-let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, lastIntro = null, lastLove = null, shows = [], showing = false;
+let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, lastIntro = null, lastLove = null, lastDeal = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -47,10 +47,11 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0, it = S.intro ? S.intro.id : 0, lv = S.love ? S.love.id : 0;
-  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; lastIntro = it; lastLove = lv; }   // don't replay old ones when a page opens
+  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0, it = S.intro ? S.intro.id : 0, lv = S.love ? S.love.id : 0, dl = S.deal ? S.deal.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; lastIntro = it; lastLove = lv; lastDeal = dl; }   // don't replay old ones when a page opens
   else {
     if (it > lastIntro) { lastIntro = it; shows.unshift([championIntro, 11700]); if (!showing) nextShow(); }
+    if (dl > lastDeal) { lastDeal = dl; const D = S.deal; queueShow(() => dealShow(D.pic, D.line, S.players[D.a].name, S.players[D.b].name), 3700); }
     if (lv > lastLove) { lastLove = lv; const L = S.love; queueShow(() => loveShow(L.pics, L.dur), L.dur + 300); }
     if (pk > lastPeek) { lastPeek = pk; queueShow(() => catPeek(), 4300); }
     if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
@@ -415,6 +416,22 @@ function catPeek(src = '/img/peek-cat.jpg?v=1', ms = 4000) {
   el.style.cssText = `${pos};--from:${from};--to:${to};animation-duration:${ms}ms`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), ms + 100);
+}
+// every confirmed trade between two players: a photo bursts out of the centre with a team phrase
+const DEAL_LINES = ['See? We got this!', 'We are a team!', 'We can negotiate!', 'Look at us go!', 'Teamwork makes the dream work!',
+  'Deal of the century!', 'Partners in crime!', 'Nailed it — together!', 'Win-win, baby!', 'Compromise looks good on us!'];
+function dealShow(pic, line, a, b) {
+  const old = document.getElementById('deal'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'deal';
+  const R = (x, y) => x + Math.random() * (y - x);
+  const bits = [...Array(26)].map((_, k) => `<i style="--a:${(k * 360 / 26 + R(-6, 6)).toFixed(0)}deg;--d:${R(32, 60).toFixed(0)}vmax;background:${['#ffcd00', '#ff3d6e', '#3d8bff', '#2ecc71', '#fff', '#ff8a00'][k % 6]};animation-delay:${R(0.12, 0.3).toFixed(2)}s"></i>`).join('');
+  el.innerHTML = `<div class="d-rays"></div><div class="d-ring"></div><div class="d-ring r2"></div><div class="d-bits">${bits}</div>
+    <div class="d-card"><img src="/img/deal${pic + 1}.jpg?v=1" alt=""></div>
+    <div class="d-text"><b>${DEAL_LINES[line % DEAL_LINES.length]}</b><small>🤝 ${esc(a)} & ${esc(b)} made a deal</small></div>`;
+  document.body.appendChild(el);
+  try { navigator.vibrate && navigator.vibrate([60, 40, 160]); } catch (e) { }
+  setTimeout(() => el.remove(), 3500);
 }
 // every 1–3 minutes: a romantic slideshow of 4 photos (the server picks them so every screen matches)
 const LOVE_LINES = ['I love you', 'I miss you', 'You + me = forever', 'My favorite human', 'Be mine', 'You light up my world', 'Always yours',
