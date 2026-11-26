@@ -134,6 +134,7 @@ function start(g) {
   // house rule: the champion intro plays on every screen; computer players wait for it
   g.intro = { id: (g.intro ? g.intro.id : 0) + 1 };
   g.introUntil = Date.now() + INTRO_MS;
+  g.nextLove = Date.now() + INTRO_MS + 60000 + rnd(120001);
 }
 const setupOrder = g => { const n = g.players.length; return [...Array(n).keys(), ...[...Array(n).keys()].reverse()]; };
 export function actorIdx(g) {
@@ -238,6 +239,21 @@ function itsOn(g, i, e) {
 // House rule: 30-second turn clock. It starts once the roll (and any robber business) is done.
 export const TURN_SECONDS = 30;
 export const INTRO_MS = 11500;
+export const LOVE_PHOTOS = 11;
+// House rule: every 1–3 minutes a romantic slideshow of 4 random photos plays on every screen (10–15 s).
+// The turn clock pauses and computer players wait while it plays.
+export function checkRomance(g, now = Date.now()) {
+  if (g.phase !== 'setup' && g.phase !== 'play') return false;
+  if (!g.nextLove) { g.nextLove = now + 60000 + rnd(120001); return true; }
+  if (now < g.nextLove || (g.introUntil && now < g.introUntil)) return false;
+  const dur = 10000 + rnd(5001);
+  const pics = shuffle([...Array(LOVE_PHOTOS).keys()]).slice(0, 4);
+  g.love = { id: (g.love ? g.love.id : 0) + 1, pics, dur };
+  g.pauseUntil = now + dur;
+  if (g.turn && g.turn.deadline) g.turn.deadline += dur;
+  g.nextLove = now + dur + 60000 + rnd(120001);
+  return true;
+}
 function startClock(g) { if (!g.turn.deadline) g.turn.deadline = Date.now() + TURN_SECONDS * 1000; }
 const resume = g => { g.turn.phase = g.turn.rolled ? 'main' : 'roll'; if (g.turn.rolled) startClock(g); };
 function nextTurn(g) {
@@ -570,7 +586,7 @@ export function view(g, pid) {
   Object.assign(out, {
     hexes: g.hexes, robber: g.robber, ports: g.ports, vertices: g.vertices, edges: g.edges,
     bank: g.bank, devLeft: g.devDeck.length, turn: g.turn, setup: g.setup, actor: actorIdx(g),
-    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, intro: g.intro || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
+    discards: g.discards, trade: g.trade, special: g.special || null, boom: g.boom || null, home: g.home || null, peek: g.peek || null, intro: g.intro || null, love: g.love || null, longestRoad: g.longestRoad, largestArmy: g.largestArmy, winner: g.winner, ended: !!g.ended,
   });
   const L = {};
   if (me >= 0 && actorIdx(g) === me) {

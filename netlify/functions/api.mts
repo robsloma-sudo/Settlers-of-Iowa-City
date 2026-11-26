@@ -1,7 +1,7 @@
 import type { Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 // @ts-ignore plain JS rules engine
-import { createGame, addPlayer, applyAction, view, botPending, botStep, checkTimeout, GEO } from "../../shared/engine.js";
+import { createGame, addPlayer, applyAction, view, botPending, botStep, checkTimeout, checkRomance, GEO } from "../../shared/engine.js";
 
 const BOT_DELAY: number = (globalThis as any).__BOT_DELAY ?? 700; // ms between computer moves, so people can follow along
 const games = () => getStore({ name: "games", consistency: "strong" });
@@ -47,12 +47,16 @@ export default async (req: Request) => {
       let g = entry as any;
       const p = g.players.find((x: any) => x.token === token);
       if (!p) return err("You are not seated in this game.", 403);
+      if ((g.phase === "setup" || g.phase === "play") && (!g.nextLove || Date.now() >= g.nextLove)) {
+        try { g = (await mutate(code, (fresh) => (checkRomance(fresh) ? undefined : false))).g; } catch (e) { /* another player started it */ }
+      }
+      const paused = (x: any) => (x.introUntil && Date.now() < x.introUntil) || (x.pauseUntil && Date.now() < x.pauseUntil);
       if (g.phase === "play" && g.turn.deadline && Date.now() >= g.turn.deadline) {
         try { g = (await mutate(code, (fresh) => (checkTimeout(fresh) ? undefined : false))).g; } catch (e) { /* someone else passed it on */ }
       }
-      if (botPending(g) && Date.now() - g.updated >= BOT_DELAY && !(g.introUntil && Date.now() < g.introUntil)) {
+      if (botPending(g) && Date.now() - g.updated >= BOT_DELAY && !paused(g)) {
         try {
-          g = (await mutate(code, (fresh) => (botPending(fresh) && Date.now() - fresh.updated >= BOT_DELAY && !(fresh.introUntil && Date.now() < fresh.introUntil) ? botStep(fresh) : false))).g;
+          g = (await mutate(code, (fresh) => (botPending(fresh) && Date.now() - fresh.updated >= BOT_DELAY && !paused(fresh) ? botStep(fresh) : false))).g;
         } catch (e) { /* another player's request moved the computer first */ }
       }
       if (g.version === known) return json({ same: true });

@@ -24,7 +24,7 @@ const store = {
 };
 
 let clockOffset = 0, peekedAt = {};
-let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, lastIntro = null, shows = [], showing = false;
+let lastSpecial = null, lastBoom = null, lastHome = null, lastPeek = null, lastIntro = null, lastLove = null, shows = [], showing = false;
 let S = null, GEO = null, session = store.get('session'), timer = null, busy = false, lastRoll = null, rollAnim = 0;
 let ui = { modal: null, mode: null, pick: null, give: {}, want: {}, tab: 'players', disc: {}, yop: [], chat: '', overSeen: false };
 const urlCode = (new URLSearchParams(location.search).get('g') || '').toUpperCase();
@@ -47,10 +47,11 @@ function setState(r) {
   if (S && r.version < S.version) return;
   S = r;
   const sp = S.special ? S.special.id : 0;
-  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0, it = S.intro ? S.intro.id : 0;
-  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; lastIntro = it; }   // don't replay old ones when a page opens
+  const bm = S.boom ? S.boom.id : 0, hm = S.home ? S.home.id : 0, pk = S.peek ? S.peek.id : 0, it = S.intro ? S.intro.id : 0, lv = S.love ? S.love.id : 0;
+  if (lastSpecial === null) { lastSpecial = sp; lastBoom = bm; lastHome = hm; lastPeek = pk; lastIntro = it; lastLove = lv; }   // don't replay old ones when a page opens
   else {
     if (it > lastIntro) { lastIntro = it; shows.unshift([championIntro, 11700]); if (!showing) nextShow(); }
+    if (lv > lastLove) { lastLove = lv; const L = S.love; queueShow(() => loveShow(L.pics, L.dur), L.dur + 300); }
     if (pk > lastPeek) { lastPeek = pk; queueShow(() => catPeek(), 4300); }
     if (hm > lastHome) { lastHome = hm; const h = S.home; queueShow(() => builtHome(S.players[h.player].name, h.pic)); }
     if (bm > lastBoom) { lastBoom = bm; const b = S.boom; queueShow(() => itsOn(S.players[b.player].name, S.players[b.other].name)); }
@@ -414,6 +415,26 @@ function catPeek(src = '/img/peek-cat.jpg?v=1', ms = 4000) {
   el.style.cssText = `${pos};--from:${from};--to:${to};animation-duration:${ms}ms`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), ms + 100);
+}
+// every 1–3 minutes: a romantic slideshow of 4 photos (the server picks them so every screen matches)
+const LOVE_LINES = ['I love you', 'I miss you', 'You + me = forever', 'My favorite human', 'Be mine', 'You light up my world', 'Always yours',
+  'Can\'t stop thinking about you', 'Forever & always', 'You stole my heart', 'Hold my hand', 'Home is wherever you are', 'XOXO',
+  'Head over heels', 'You\'re my person', 'Love you to the moon', 'Kiss me', 'My heart is yours', 'Just us', 'Adore you'];
+const LOVE_EMOJI = ['❤️', '💕', '💖', '💘', '💝', '💗', '💓', '💞', '💌', '🌹', '😘', '🥰', '😍', '💋', '👼', '🏹', '💐', '🌸', '✨', '💑'];
+function loveShow(pics, dur) {
+  const old = document.getElementById('love'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'love';
+  el.style.setProperty('--dur', dur + 'ms');
+  const R = (a, b) => a + Math.random() * (b - a), slot = dur / 4;
+  const photos = pics.map((p, k) => `<div class="lv-ph" style="--rot:${R(-9, 9).toFixed(1)}deg;--x:${R(-6, 6).toFixed(1)}vw;animation-delay:${(k * slot - 300).toFixed(0)}ms;animation-duration:${(slot + 900).toFixed(0)}ms"><img src="/img/love${p + 1}.jpg?v=1" alt=""></div>`).join('');
+  const lines = [...LOVE_LINES].sort(() => Math.random() - .5).slice(0, Math.round(dur / 1100));
+  const words = lines.map((t, k) => `<b class="lv-w" style="left:${R(0, 12).toFixed(0)}%;right:${R(0, 12).toFixed(0)}%;top:${(k % 2 ? R(66, 84) : R(6, 20)).toFixed(0)}%;--r:${R(-12, 12).toFixed(0)}deg;animation-delay:${(k * 1050 + R(0, 250)).toFixed(0)}ms;font-size:${R(24, 38).toFixed(0)}px">${t}</b>`).join('');
+  const hearts = [...Array(34)].map(() => `<i class="lv-e" style="left:${R(0, 96).toFixed(0)}%;font-size:${R(22, 46).toFixed(0)}px;--x:${R(-12, 12).toFixed(0)}vw;animation-delay:${R(0, dur - 2500).toFixed(0)}ms;animation-duration:${R(2.6, 4.2).toFixed(2)}s">${LOVE_EMOJI[Math.floor(R(0, LOVE_EMOJI.length))]}</i>`).join('');
+  const blooms = [...Array(6)].map((_, k) => `<i class="lv-b" style="left:${R(10, 90).toFixed(0)}%;top:${R(10, 90).toFixed(0)}%;animation-delay:${(k * 1.6).toFixed(1)}s"></i>`).join('');
+  el.innerHTML = `<div class="lv-big">❤️</div>${blooms}${photos}${words}${hearts}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), dur);
 }
 // start of every game: the champion intro (about 10 seconds of celebration, then a slow fade)
 function championIntro() {
