@@ -434,9 +434,16 @@ function dealShow(pic, line, a, b) {
   setTimeout(() => el.remove(), 3500);
 }
 // every 1–3 minutes: a romantic slideshow of 4 photos (the server picks them so every screen matches)
-const LOVE_LINES = ['I love you', 'I miss you', 'You + me = forever', 'My favorite human', 'Be mine', 'You light up my world', 'Always yours',
-  'Can\'t stop thinking about you', 'Forever & always', 'You stole my heart', 'Hold my hand', 'Home is wherever you are', 'XOXO',
-  'Head over heels', 'You\'re my person', 'Love you to the moon', 'Kiss me', 'My heart is yours', 'Just us', 'Adore you'];
+const LOVE_LINES = [
+  'I love you more than a 6 on the first roll', 'You had me at "wanna trade?"', 'Still into you. Even after you stole my corn.',
+  'I love you, but I\'m taking Longest Road', 'My favorite person to lose to', 'I\'d trade you my last pink elephant',
+  'Ugh. Fine. I love you.', 'Cute when you\'re hoarding Montenegro', 'I\'d wait 30 seconds for you. Maybe 31.',
+  'You\'re the 8 to my 6', 'Let\'s build a settlement. And a life. Mostly a settlement.', 'Will you be my Largest Army?',
+  'I\'d never put the robber on you. Probably.', 'You complete me (and my road)', 'We\'d make a great 2:1 harbor',
+  'Our love is like a 7: chaotic, but we stay', 'Romance is just negotiation with better lighting',
+  'I\'m not crying, it\'s the desert tile', 'You blocked my road and I still miss you', 'Soulmates. Also trade partners.',
+  'Me + you + a full hand of cards', 'I\'d discard half my cards for you', 'You\'re worth every cat mitten',
+  'Fine, you can have the good harbor', 'Love you more than victory points (don\'t tell anyone)'];
 const LOVE_EMOJI = ['❤️', '💕', '💖', '💘', '💝', '💗', '💓', '💞', '💌', '🌹', '😘', '🥰', '😍', '💋', '👼', '🏹', '💐', '🌸', '✨', '💑'];
 function loveShow(pics, dur) {
   const old = document.getElementById('love'); if (old) old.remove();
@@ -446,7 +453,7 @@ function loveShow(pics, dur) {
   const R = (a, b) => a + Math.random() * (b - a), slot = dur / 4;
   const photos = pics.map((p, k) => `<div class="lv-ph" style="--rot:${R(-9, 9).toFixed(1)}deg;--x:${R(-6, 6).toFixed(1)}vw;animation-delay:${(k * slot - 300).toFixed(0)}ms;animation-duration:${(slot + 900).toFixed(0)}ms"><img src="/img/love${p + 1}.jpg?v=1" alt=""></div>`).join('');
   const lines = [...LOVE_LINES].sort(() => Math.random() - .5).slice(0, Math.round(dur / 1100));
-  const words = lines.map((t, k) => `<b class="lv-w" style="left:${R(0, 12).toFixed(0)}%;right:${R(0, 12).toFixed(0)}%;top:${(k % 2 ? R(66, 84) : R(6, 20)).toFixed(0)}%;--r:${R(-12, 12).toFixed(0)}deg;animation-delay:${(k * 1050 + R(0, 250)).toFixed(0)}ms;font-size:${R(24, 38).toFixed(0)}px">${t}</b>`).join('');
+  const words = lines.map((t, k) => `<b class="lv-w" style="left:${R(0, 12).toFixed(0)}%;right:${R(0, 12).toFixed(0)}%;top:${(k % 2 ? R(66, 84) : R(6, 20)).toFixed(0)}%;--r:${R(-6, 6).toFixed(0)}deg;animation-delay:${(k * 1050 + R(0, 250)).toFixed(0)}ms;font-size:${(t.length > 32 ? R(19, 24) : t.length > 20 ? R(22, 28) : R(28, 38)).toFixed(0)}px">${esc(t)}</b>`).join('');
   const hearts = [...Array(34)].map(() => `<i class="lv-e" style="left:${R(0, 96).toFixed(0)}%;font-size:${R(22, 46).toFixed(0)}px;--x:${R(-12, 12).toFixed(0)}vw;animation-delay:${R(0, dur - 2500).toFixed(0)}ms;animation-duration:${R(2.6, 4.2).toFixed(2)}s">${LOVE_EMOJI[Math.floor(R(0, LOVE_EMOJI.length))]}</i>`).join('');
   const blooms = [...Array(6)].map((_, k) => `<i class="lv-b" style="left:${R(10, 90).toFixed(0)}%;top:${R(10, 90).toFixed(0)}%;animation-delay:${(k * 1.6).toFixed(1)}s"></i>`).join('');
   el.innerHTML = `<div class="lv-big">❤️</div>${blooms}${photos}${words}${hearts}`;
